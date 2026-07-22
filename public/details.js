@@ -184,6 +184,13 @@ async function loadExpansions(hasExpansions) {
         entry.appendChild(ownedBadge);
       }
 
+      if (item.manual) {
+        const manualNote = document.createElement('span');
+        manualNote.className = 'manual-note';
+        manualNote.textContent = 'not in titledb — added from your library';
+        entry.appendChild(manualNote);
+      }
+
       const idSpan = document.createElement('span');
       idSpan.className = 'expand-id';
       idSpan.textContent = item.titleId;

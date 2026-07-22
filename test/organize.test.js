@@ -29,16 +29,19 @@ const baseFile = 'Organize Base Game [0100000000010000][v0].nsp';
 const dlcFile = 'Organize Base Game DLC [0100000000011001][v0].nsp';
 const rejectedFile = 'Rejected File [0100000000010000][v0].nsp';
 const missingFile = 'Missing Source [0100000000010000][v0].nsp';
+const untaggedUpdateFile = 'Organize Base Game Update.nsp';
 
 fs.writeFileSync(path.join(titlesDir, baseFile), '');
 fs.writeFileSync(path.join(titlesDir, dlcFile), '');
 fs.writeFileSync(path.join(titlesDir, rejectedFile), '');
+fs.writeFileSync(path.join(titlesDir, untaggedUpdateFile), '');
 // missingFile deliberately never created on disk.
 
 decisions.setDecision(baseFile, { status: 'accepted', titleId: BASE_ID, region: REGION });
 decisions.setDecision(dlcFile, { status: 'accepted', titleId: DLC_ID, region: REGION });
 decisions.setDecision(rejectedFile, { status: 'rejected', titleId: BASE_ID, region: REGION });
 decisions.setDecision(missingFile, { status: 'accepted', titleId: BASE_ID, region: REGION });
+decisions.setDecision(untaggedUpdateFile, { status: 'accepted', titleId: BASE_ID, region: REGION, version: '65536' });
 
 test('sanitize strips filesystem-illegal characters, trademarks, and trailing junk', () => {
   assert.equal(organize.sanitize('Game™: Name / Sub\\Thing?* ', 'fallback'), 'Game Name SubThing');
@@ -62,6 +65,13 @@ test('buildPlan computes base and DLC destinations, and reports the missing sour
   const missingSkip = skipped.find((s) => s.path === missingFile);
   assert.ok(missingSkip);
   assert.match(missingSkip.reason, /no longer exists/);
+});
+
+test('buildPlan uses a decision\'s manual version override for files with no "[vNNN]" tag of their own', () => {
+  const { plan } = organize.buildPlan(REGION);
+  const updatePlan = plan.find((p) => p.path === untaggedUpdateFile);
+  assert.ok(updatePlan);
+  assert.equal(updatePlan.to, path.join('Organize Base Game[0100000000010000]', 'Organize Base Game [0100000000010000][65536].nsp'));
 });
 
 test('buildPlan skips an item whose destination already exists', () => {

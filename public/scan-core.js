@@ -1,3 +1,7 @@
+// Displayed next to a match/search-result name so DLC, update editions, and
+// demos are distinguishable from base games (which get no tag).
+const CONTENT_TYPE_TAG = { dlc: 'DLC', update: 'Update', demo: 'Demo' };
+
 // Shared logic behind both Library Scan (scan.js) and Staging (staging.js):
 // scan a folder, match files against titledb, accept/reject/override each
 // one, then preview and apply a rename/move plan. The two pages differ only
@@ -187,8 +191,13 @@ function initScanPage(config) {
 
     const matchTd = document.createElement('td');
     renderMatchCell(matchTd, item.match);
-    if (item.variantOptions && item.status === 'accepted') {
-      renderVariantToggle(matchTd, item, region);
+    if (item.status === 'accepted') {
+      if (item.variantOptions) {
+        renderVariantToggle(matchTd, item, region);
+      }
+      if (item.match && item.match.contentType !== 'dlc') {
+        renderVersionEditor(matchTd, item, region);
+      }
     }
     tr.appendChild(matchTd);
 
@@ -245,18 +254,25 @@ function initScanPage(config) {
         return;
       }
       debounce = setTimeout(async () => {
-        const params = new URLSearchParams({ region, q, field: 'all' });
+        // contentType: 'all' — matching a file to its DLC or update-edition
+        // catalog entry (not just the base game) is the whole point of this box.
+        const params = new URLSearchParams({ region, q, field: 'all', contentType: 'all' });
         const res = await fetch(`/api/search?${params}`);
         const data = await res.json();
         overrideResults.innerHTML = '';
         if (!res.ok) return;
         for (const title of data.results.slice(0, 25)) {
           const row = document.createElement('div');
-          row.textContent = `${title.name || '(no name)'} — ${title.id || ''}`;
+          const tag = CONTENT_TYPE_TAG[title.contentType];
+          row.textContent = `${tag ? `[${tag}] ` : ''}${title.name || '(no name)'} — ${title.id || ''}`;
           row.addEventListener('click', () => {
             item.match = title;
             item.decidedTitleId = title.id;
+            item.variantOptions = null; // a specific search hit, not a resolved id — no known siblings
             renderMatchCell(matchTd, title);
+            if (item.status === 'accepted' && title.contentType !== 'dlc') {
+              renderVersionEditor(matchTd, item, region);
+            }
             overrideBox.classList.remove('open');
             overrideResults.innerHTML = '';
             overrideInput.value = '';
@@ -295,6 +311,13 @@ function initScanPage(config) {
     const span = document.createElement('span');
     span.textContent = match.name || '(no name)';
     details.appendChild(span);
+    const tag = CONTENT_TYPE_TAG[match.contentType];
+    if (tag) {
+      const badge = document.createElement('span');
+      badge.className = `badge badge-type-${match.contentType}`;
+      badge.textContent = tag;
+      details.appendChild(badge);
+    }
     cell.appendChild(details);
   }
 
@@ -343,6 +366,62 @@ function initScanPage(config) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to save variant');
+    if (item.status === 'pending') item.status = 'accepted';
+  }
+
+  // Base games and updates are organized as "<Name> [<Id>][<version>]<ext>".
+  // The version normally comes from a "[vNNN]" tag in the filename, but not
+  // every update file carries one — this lets it be set (or corrected) by
+  // hand, e.g. to file a bare "Game Update.nsp" as the specific version it is.
+  function renderVersionEditor(cell, item, region) {
+    const label = document.createElement('label');
+    label.className = 'checkbox-item variant-toggle';
+    label.append('Version');
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = '0';
+    input.step = '1';
+    input.placeholder = item.version ?? '0';
+    input.value = item.versionOverride ?? '';
+    input.className = 'version-input';
+    label.appendChild(input);
+    cell.appendChild(label);
+
+    const commit = async () => {
+      const raw = input.value.trim();
+      if (raw === (item.versionOverride ?? '')) return;
+      input.disabled = true;
+      try {
+        await setVersionOverride(item, region, raw === '' ? null : raw);
+        item.versionOverride = raw === '' ? null : raw;
+      } catch (err) {
+        await showAlert(err.message, 'Error');
+        input.value = item.versionOverride ?? '';
+      } finally {
+        input.disabled = false;
+      }
+    };
+    input.addEventListener('change', commit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') input.blur();
+    });
+  }
+
+  async function setVersionOverride(item, region, version) {
+    const res = await fetch(`${apiBase}/decision`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        path: item.path,
+        status: item.status === 'pending' ? 'accepted' : item.status,
+        titleId: item.decidedTitleId || item.titleId,
+        region,
+        version,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to save version');
     if (item.status === 'pending') item.status = 'accepted';
   }
 

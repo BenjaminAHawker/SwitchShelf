@@ -95,10 +95,14 @@
         <thead>
           <tr>
             <th scope="col"><span class="sr-only">Icon</span></th>
-            <th scope="col">Name</th>
+            <th scope="col" aria-sort="ascending">
+              <button type="button" class="sort-btn" data-sort-field="name">Name<span class="sort-indicator" aria-hidden="true"></span></button>
+            </th>
             <th scope="col">Title ID</th>
             <th scope="col">nsuId</th>
-            <th scope="col">Release Date</th>
+            <th scope="col" aria-sort="none">
+              <button type="button" class="sort-btn" data-sort-field="date">Release Date<span class="sort-indicator" aria-hidden="true"></span></button>
+            </th>
             <th scope="col">Platform</th>
             <th scope="col"><span class="sr-only">Actions</span></th>
           </tr>

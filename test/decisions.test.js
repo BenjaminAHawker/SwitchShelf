@@ -10,12 +10,13 @@ test('readAll returns an empty object when nothing has been decided yet', () => 
   assert.deepEqual(decisions.readAll(), {});
 });
 
-test('setDecision stores status, titleId, region and a null variant by default', () => {
+test('setDecision stores status, titleId, region and a null variant/version by default', () => {
   const saved = decisions.setDecision('Game A.nsp', { status: 'accepted', titleId: '0100000000000001', region: 'US.en.json' });
   assert.equal(saved.status, 'accepted');
   assert.equal(saved.titleId, '0100000000000001');
   assert.equal(saved.region, 'US.en.json');
   assert.equal(saved.variant, null);
+  assert.equal(saved.version, null);
   assert.ok(saved.decidedAt);
 });
 
@@ -29,6 +30,34 @@ test('setDecision overwrites the variant when one is explicitly provided', () =>
   decisions.setDecision('Game C.nsp', { status: 'accepted', titleId: '0100000000000003', region: 'US.en.json', variant: 'switch2' });
   const updated = decisions.setDecision('Game C.nsp', { status: 'accepted', titleId: '0100000000000003', region: 'US.en.json', variant: 'switch' });
   assert.equal(updated.variant, 'switch');
+});
+
+test('setDecision preserves an existing version when the call omits it', () => {
+  decisions.setDecision('Update A.nsp', { status: 'accepted', titleId: '0100000000000004', region: 'US.en.json', version: '65536' });
+  const reAccepted = decisions.setDecision('Update A.nsp', { status: 'accepted', titleId: '0100000000000004', region: 'US.en.json' });
+  assert.equal(reAccepted.version, '65536');
+});
+
+test('setDecision overwrites the version when one is explicitly provided, including clearing it with null', () => {
+  decisions.setDecision('Update B.nsp', { status: 'accepted', titleId: '0100000000000005', region: 'US.en.json', version: '65536' });
+  const updated = decisions.setDecision('Update B.nsp', { status: 'accepted', titleId: '0100000000000005', region: 'US.en.json', version: '131072' });
+  assert.equal(updated.version, '131072');
+  const cleared = decisions.setDecision('Update B.nsp', { status: 'accepted', titleId: '0100000000000005', region: 'US.en.json', version: null });
+  assert.equal(cleared.version, null);
+});
+
+test('getAcceptedVersionsForTitle returns distinct manually-set versions accepted for a titleId', () => {
+  decisions.setDecision('Update C v1.nsp', { status: 'accepted', titleId: '0100000000000006', region: 'US.en.json', version: '65536' });
+  decisions.setDecision('Update C v2.nsp', { status: 'accepted', titleId: '0100000000000006', region: 'US.en.json', version: '196608' });
+  // A duplicate version shouldn't produce a duplicate entry.
+  decisions.setDecision('Update C v2 dup.nsp', { status: 'accepted', titleId: '0100000000000006', region: 'US.en.json', version: '196608' });
+  // Rejected, or with no version override, shouldn't count.
+  decisions.setDecision('Update C rejected.nsp', { status: 'rejected', titleId: '0100000000000006', region: 'US.en.json', version: '999999' });
+  decisions.setDecision('Update C no override.nsp', { status: 'accepted', titleId: '0100000000000006', region: 'US.en.json' });
+
+  const versions = decisions.getAcceptedVersionsForTitle('0100000000000006');
+  assert.deepEqual([...versions].sort(), ['196608', '65536']);
+  assert.deepEqual(decisions.getAcceptedVersionsForTitle('DEADBEEFDEADBEEF'), []);
 });
 
 test('getAcceptedTitleIds only counts accepted decisions with a titleId', () => {

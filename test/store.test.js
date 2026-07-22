@@ -19,6 +19,8 @@ writeJSON(dataDir, REGION, {
   60: { id: '0100000000099999', nsuId: 60 },
   70: { id: '0100000000010000', name: 'Base For DLC Test', nsuId: 70, iconUrl: 'icon70', languages: ['en'], releaseDate: 20190101 },
   80: { id: '0100000000013000', name: 'Sneaky DLC With Icon', nsuId: 80, iconUrl: 'icon80', languages: ['en'], releaseDate: 20200601 },
+  90: { id: '0100000000020000', name: 'Digimon Story Time Stranger', nsuId: 90, iconUrl: 'icon90', languages: ['en'], releaseDate: 20240315 },
+  91: { id: '0100000000021000', name: 'Digimon Survive', nsuId: 91, iconUrl: 'icon91', languages: ['en'], releaseDate: 20220729 },
 });
 
 const store = require('../lib/store');
@@ -97,13 +99,38 @@ test('getContentType prefers cnmts.json once it is available, even over the icon
 test('search: browsing (empty query) defaults to games only, sorted by name', () => {
   const { total, results } = store.search(REGION, '');
   const names = results.map((r) => r.name).sort();
-  assert.deepEqual(names, ['Base For DLC Test', 'Native Switch2 Game', 'Test Game', 'Test Game – Nintendo Switch 2 Edition']);
-  assert.equal(total, 4);
+  assert.deepEqual(names, [
+    'Base For DLC Test',
+    'Digimon Story Time Stranger',
+    'Digimon Survive',
+    'Native Switch2 Game',
+    'Test Game',
+    'Test Game – Nintendo Switch 2 Edition',
+  ]);
+  assert.equal(total, 6);
 });
 
 test('search: contentType "all" includes DLC and demos too', () => {
   const { total } = store.search(REGION, '', { contentType: 'all' });
-  assert.equal(total, 7); // everything with an id and a name
+  assert.equal(total, 9); // everything with an id and a name
+});
+
+test('search: name matching is word-order-independent, not a single substring', () => {
+  const { total, results } = store.search(REGION, 'digimon time');
+  assert.equal(total, 1);
+  assert.equal(results[0].name, 'Digimon Story Time Stranger');
+  // "Digimon Survive" has "digimon" but not "time", so it's excluded.
+});
+
+test('search: sort option controls order (name-desc, date-desc, date-asc)', () => {
+  const byNameDesc = store.search(REGION, 'digimon', { sort: 'name-desc' });
+  assert.deepEqual(byNameDesc.results.map((r) => r.name), ['Digimon Survive', 'Digimon Story Time Stranger']);
+
+  const byDateDesc = store.search(REGION, 'digimon', { sort: 'date-desc' });
+  assert.deepEqual(byDateDesc.results.map((r) => r.name), ['Digimon Story Time Stranger', 'Digimon Survive']);
+
+  const byDateAsc = store.search(REGION, 'digimon', { sort: 'date-asc' });
+  assert.deepEqual(byDateAsc.results.map((r) => r.name), ['Digimon Survive', 'Digimon Story Time Stranger']);
 });
 
 test('search: text query matches by name, still filtered to games by default', () => {
@@ -131,7 +158,12 @@ test('search: platform filter', () => {
   assert.deepEqual(switch2Only.results.map((r) => r.name).sort(), ['Native Switch2 Game', 'Test Game – Nintendo Switch 2 Edition']);
 
   const switchOnly = store.search(REGION, '', { platform: 'switch' });
-  assert.deepEqual(switchOnly.results.map((r) => r.name).sort(), ['Base For DLC Test', 'Test Game']);
+  assert.deepEqual(switchOnly.results.map((r) => r.name).sort(), [
+    'Base For DLC Test',
+    'Digimon Story Time Stranger',
+    'Digimon Survive',
+    'Test Game',
+  ]);
 });
 
 test('search: language filter (OR across selected codes)', () => {
@@ -152,7 +184,7 @@ test('search: owned filter reflects accepted Library Scan decisions', () => {
   assert.ok(owned.results.every((r) => r.owned === true));
 
   const missing = store.search(REGION, '', { owned: 'missing', contentType: 'all' });
-  assert.equal(missing.total, 5);
+  assert.equal(missing.total, 7);
   assert.ok(missing.results.every((r) => r.owned === false));
 });
 

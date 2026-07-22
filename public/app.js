@@ -13,11 +13,43 @@ const ownedSelect = document.getElementById('owned-select');
 const languageCheckboxes = document.getElementById('language-checkboxes');
 const resultsInfo = document.getElementById('results-info');
 const resultsBody = document.getElementById('results-body');
+const sortButtons = document.querySelectorAll('.sort-btn');
 
 let regions = [];
 let cnmtsState = { downloaded: false, stale: false };
 let selectedLanguages = new Set();
 let loadedLanguagesRegion = null;
+let sortField = 'name';
+let sortDir = 'asc';
+
+// Clicking a column that isn't the active sort switches to it with a sensible
+// default direction (alphabetical for name, newest-first for date); clicking
+// the already-active column flips its direction.
+const DEFAULT_SORT_DIR = { name: 'asc', date: 'desc' };
+
+function updateSortHeaders() {
+  for (const btn of sortButtons) {
+    const th = btn.closest('th');
+    const isActive = btn.dataset.sortField === sortField;
+    th.setAttribute('aria-sort', isActive ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
+  }
+}
+
+for (const btn of sortButtons) {
+  btn.addEventListener('click', () => {
+    const field = btn.dataset.sortField;
+    if (field === sortField) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortField = field;
+      sortDir = DEFAULT_SORT_DIR[field] || 'asc';
+    }
+    updateSortHeaders();
+    runSearch();
+  });
+}
+
+updateSortHeaders();
 
 // titledb stores releaseDate as an YYYYMMDD integer, e.g. 20220707.
 function fmtReleaseDate(yyyymmdd) {
@@ -218,6 +250,7 @@ async function runSearch() {
     contentType: contentSelect.value,
     owned: ownedSelect.value,
     languages: [...selectedLanguages].join(','),
+    sort: `${sortField}-${sortDir}`,
   });
   const res = await fetch(`/api/search?${params}`);
   const data = await res.json();
@@ -407,6 +440,13 @@ async function buildExpandRow(title, region) {
         ownedBadge.className = 'badge badge-owned';
         ownedBadge.textContent = 'Owned';
         entry.appendChild(ownedBadge);
+      }
+
+      if (item.manual) {
+        const manualNote = document.createElement('span');
+        manualNote.className = 'manual-note';
+        manualNote.textContent = 'not in titledb — added from your library';
+        entry.appendChild(manualNote);
       }
 
       const idSpan = document.createElement('span');
