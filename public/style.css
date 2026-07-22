@@ -30,6 +30,16 @@ header {
   padding: 2rem 0 1rem;
 }
 
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.app-logo {
+  flex-shrink: 0;
+}
+
 h1 { margin: 0 0 0.25rem; font-size: 1.5rem; }
 .subtitle { margin: 0; color: var(--muted); font-size: 0.9rem; }
 .subtitle a { color: var(--accent); }

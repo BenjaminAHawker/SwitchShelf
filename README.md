@@ -1,3 +1,5 @@
+<img src="public/icons/icon-192.png" alt="SwitchShelf logo" width="96" height="96" />
+
 # SwitchShelf
 
 A self-hosted web app for browsing [blawar/titledb](https://github.com/blawar/titledb) by region, and for matching a local Nintendo Switch title library against it.
