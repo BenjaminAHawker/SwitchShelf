@@ -236,6 +236,7 @@ fieldset.controls {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
+  padding-top: 0.5rem;
 }
 
 .checkbox-item {
@@ -278,6 +279,11 @@ button:disabled { opacity: 0.5; cursor: default; }
 .status {
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
@@ -610,4 +616,118 @@ td.expand-cell {
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 1.25rem;
+}
+
+/* --- Mobile --- */
+
+@media (max-width: 640px) {
+  body {
+    padding: 0 1rem 2rem;
+  }
+
+  header {
+    padding: 1.25rem 0 1rem;
+  }
+
+  .app-header {
+    flex-wrap: wrap;
+  }
+
+  .app-logo {
+    width: 36px;
+    height: 36px;
+  }
+
+  .a11y-menu {
+    flex: 1 1 100%;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .a11y-menu-panel {
+    left: 0;
+    right: auto;
+  }
+
+  h1 { font-size: 1.25rem; }
+
+  /* Stack each control onto its own row instead of cramming them side by
+     side — native selects/inputs don't shrink to fit, so left as a single
+     wrapped row they push the page wider than the viewport. */
+  .controls {
+    align-items: stretch;
+  }
+
+  .controls > * {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .controls label,
+  .controls-label {
+    flex-basis: auto;
+  }
+
+  #search-input {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  /* Only the table scrolls horizontally, not the whole page. Search results
+     drop columns instead (below) and fit without forcing a scroll width. */
+  .table-scroll table:not(.search-results) {
+    min-width: 560px;
+  }
+
+  /* Search results: keep the glanceable columns, drop the rest — still
+     reachable via the title's details page. */
+  .search-results th:nth-child(3),
+  .search-results td:nth-child(3),
+  .search-results th:nth-child(4),
+  .search-results td:nth-child(4),
+  .search-results th:nth-child(5),
+  .search-results td:nth-child(5) {
+    display: none;
+  }
+
+  /* The "DLC/Updates ▾" button is the one thing left wide enough to force
+     the row wider than the screen — cap its width so it wraps instead of
+     dragging the whole column (and the table's scroll box) wider. */
+  .search-results button.secondary {
+    white-space: normal;
+    max-width: 72px;
+    font-size: 0.72rem;
+    line-height: 1.15;
+    padding: 0.3rem 0.35rem;
+    text-align: center;
+  }
+
+  /* Trim the remaining per-cell padding/icon size so four columns comfortably
+     fit a phone width without any leftover horizontal scroll. */
+  .search-results th,
+  .search-results td {
+    padding: 0.5rem 0.35rem;
+  }
+
+  .search-results td.icon-cell img {
+    width: 26px;
+    height: 26px;
+  }
+
+  .detail-header {
+    flex-wrap: wrap;
+  }
+
+  .detail-icon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .detail-header-text {
+    padding-top: 0;
+  }
+
+  .detail-banner {
+    margin-bottom: 0.75rem;
+  }
 }

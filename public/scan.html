@@ -54,18 +54,20 @@
 
     <section id="summary" class="status" role="status" aria-live="polite"></section>
 
-    <table id="results">
-      <thead>
-        <tr>
-          <th scope="col">File</th>
-          <th scope="col">Extracted ID</th>
-          <th scope="col">Proposed match</th>
-          <th scope="col">Status</th>
-          <th scope="col">Actions</th>
-        </tr>
-      </thead>
-      <tbody id="results-body"></tbody>
-    </table>
+    <div class="table-scroll">
+      <table id="results">
+        <thead>
+          <tr>
+            <th scope="col">File</th>
+            <th scope="col">Extracted ID</th>
+            <th scope="col">Proposed match</th>
+            <th scope="col">Status</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="results-body"></tbody>
+      </table>
+    </div>
 
     <section class="controls">
       <button id="organize-btn" class="secondary" aria-expanded="false" aria-controls="organize-panel">Organize accepted files &#9662;</button>
@@ -74,17 +76,19 @@
 
     <div id="organize-panel" class="organize-panel" hidden>
       <div id="organize-summary" class="status" role="status" aria-live="polite"></div>
-      <table id="organize-table">
-        <thead>
-          <tr>
-            <th scope="col"><span class="sr-only">Include</span></th>
-            <th scope="col">Current file</th>
-            <th scope="col">New location</th>
-            <th scope="col">Type</th>
-          </tr>
-        </thead>
-        <tbody id="organize-body"></tbody>
-      </table>
+      <div class="table-scroll">
+        <table id="organize-table">
+          <thead>
+            <tr>
+              <th scope="col"><span class="sr-only">Include</span></th>
+              <th scope="col">Current file</th>
+              <th scope="col">New location</th>
+              <th scope="col">Type</th>
+            </tr>
+          </thead>
+          <tbody id="organize-body"></tbody>
+        </table>
+      </div>
       <div id="organize-skipped"></div>
       <button id="organize-apply-btn" disabled>Move selected files</button>
     </div>

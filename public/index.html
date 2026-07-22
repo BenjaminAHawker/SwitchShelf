@@ -90,20 +90,22 @@
 
     <section id="results-info" class="status" role="status" aria-live="polite"></section>
 
-    <table id="results">
-      <thead>
-        <tr>
-          <th scope="col"><span class="sr-only">Icon</span></th>
-          <th scope="col">Name</th>
-          <th scope="col">Title ID</th>
-          <th scope="col">nsuId</th>
-          <th scope="col">Release Date</th>
-          <th scope="col">Platform</th>
-          <th scope="col"><span class="sr-only">Actions</span></th>
-        </tr>
-      </thead>
-      <tbody id="results-body"></tbody>
-    </table>
+    <div class="table-scroll">
+      <table id="results" class="search-results">
+        <thead>
+          <tr>
+            <th scope="col"><span class="sr-only">Icon</span></th>
+            <th scope="col">Name</th>
+            <th scope="col">Title ID</th>
+            <th scope="col">nsuId</th>
+            <th scope="col">Release Date</th>
+            <th scope="col">Platform</th>
+            <th scope="col"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody id="results-body"></tbody>
+      </table>
+    </div>
   </main>
 
   <script src="region-pref.js"></script>
