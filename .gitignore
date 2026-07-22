@@ -1,0 +1,8 @@
+node_modules/
+data/*.json
+!data/.gitkeep
+titles/*
+!titles/.gitkeep
+.env
+.DS_Store
+.claude/
