@@ -67,11 +67,6 @@
         <option value="name">Name only</option>
         <option value="nsuId">nsuId only</option>
       </select>
-      <select id="platform-select" title="Filter by platform (based on title ID / name, titledb has no explicit platform field)">
-        <option value="all">Switch + Switch 2</option>
-        <option value="switch">Switch only</option>
-        <option value="switch2">Switch 2 only</option>
-      </select>
       <select id="content-select" title="titledb lists DLC, update editions, and demos as regular catalog entries; this filter tells them apart">
         <option value="game">Games only</option>
         <option value="all">Games + DLC + Updates + Demos</option>
@@ -103,7 +98,7 @@
             <th scope="col" aria-sort="none">
               <button type="button" class="sort-btn" data-sort-field="date">Release Date<span class="sort-indicator" aria-hidden="true"></span></button>
             </th>
-            <th scope="col">Platform</th>
+            <th scope="col">Status</th>
             <th scope="col"><span class="sr-only">Actions</span></th>
           </tr>
         </thead>

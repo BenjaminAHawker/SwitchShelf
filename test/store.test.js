@@ -17,7 +17,7 @@ writeJSON(dataDir, REGION, {
   40: { id: '0100000000012000', name: 'Test Game Demo', nsuId: 40, iconUrl: 'icon40', languages: ['en'], releaseDate: 20200101 },
   50: { name: 'No Id Entry', nsuId: 50 },
   60: { id: '0100000000099999', nsuId: 60 },
-  70: { id: '0100000000010000', name: 'Base For DLC Test', nsuId: 70, iconUrl: 'icon70', languages: ['en'], releaseDate: 20190101 },
+  70: { id: '0100000000010000', name: 'Base For DLC Test', nsuId: 70, iconUrl: 'icon70', languages: ['en', 'fr'], releaseDate: 20190101 },
   80: { id: '0100000000013000', name: 'Sneaky DLC With Icon', nsuId: 80, iconUrl: 'icon80', languages: ['en'], releaseDate: 20200601 },
   90: { id: '0100000000020000', name: 'Digimon Story Time Stranger', nsuId: 90, iconUrl: 'icon90', languages: ['en'], releaseDate: 20240315 },
   91: { id: '0100000000021000', name: 'Digimon Survive', nsuId: 91, iconUrl: 'icon91', languages: ['en'], releaseDate: 20220729 },
@@ -46,32 +46,23 @@ test('findAllByTitleId returns every entry sharing an id, Switch before Switch2'
   assert.equal(all[1].isSwitch2, true);
 });
 
-test('findByTitleId defaults to the non-Switch2 entry', () => {
-  const match = store.findByTitleId(REGION, '0100000000000001');
-  assert.equal(match.name, 'Test Game');
-});
-
 test('findByTitleId / findAllByTitleId return null/[] for an unknown id', () => {
   assert.equal(store.findByTitleId(REGION, 'DEADBEEFDEADBEEF'), null);
   assert.deepEqual(store.findAllByTitleId(REGION, 'DEADBEEFDEADBEEF'), []);
 });
 
-test('resolveVariant offers both options and defaults to Switch', () => {
-  const { match, variantOptions } = store.resolveVariant(REGION, '0100000000000001', null);
+// There's no way to dump/back up a Switch 2 game, so a titleId shared by a
+// Switch release and a "Switch 2 Edition" listing must always resolve to the
+// Switch entry — there's no toggle or preference to honor anymore.
+test('findByTitleId always resolves a shared id to the Switch entry, never the Switch 2 Edition', () => {
+  const match = store.findByTitleId(REGION, '0100000000000001');
   assert.equal(match.name, 'Test Game');
-  assert.ok(variantOptions.switch);
-  assert.ok(variantOptions.switch2);
+  assert.equal(match.isSwitch2, false);
 });
 
-test('resolveVariant honors an explicit switch2 preference', () => {
-  const { match } = store.resolveVariant(REGION, '0100000000000001', 'switch2');
-  assert.equal(match.name, 'Test Game – Nintendo Switch 2 Edition');
-});
-
-test('resolveVariant reports no variantOptions when there is only one candidate', () => {
-  const { match, variantOptions } = store.resolveVariant(REGION, '0400000000000002', null);
+test('findByTitleId still resolves a native Switch 2 title (no Switch sibling to prefer)', () => {
+  const match = store.findByTitleId(REGION, '0400000000000002');
   assert.equal(match.name, 'Native Switch2 Game');
-  assert.equal(variantOptions, null);
 });
 
 test('getContentType falls back to a no-icon heuristic before cnmts.json exists', () => {
@@ -96,23 +87,36 @@ test('getContentType prefers cnmts.json once it is available, even over the icon
   assert.equal(store.getContentType(sneaky), 'dlc'); // cnmts overrides the "has an icon" heuristic
 });
 
-test('search: browsing (empty query) defaults to games only, sorted by name', () => {
+test('search: browsing (empty query) defaults to games only, sorted by name, and excludes Switch 2 titles', () => {
   const { total, results } = store.search(REGION, '');
   const names = results.map((r) => r.name).sort();
   assert.deepEqual(names, [
     'Base For DLC Test',
     'Digimon Story Time Stranger',
     'Digimon Survive',
-    'Native Switch2 Game',
     'Test Game',
-    'Test Game – Nintendo Switch 2 Edition',
   ]);
-  assert.equal(total, 6);
+  assert.equal(total, 4);
 });
 
-test('search: contentType "all" includes DLC and demos too', () => {
+test('search: contentType "all" includes DLC and demos too, still excluding Switch 2 titles', () => {
   const { total } = store.search(REGION, '', { contentType: 'all' });
-  assert.equal(total, 9); // everything with an id and a name
+  assert.equal(total, 7); // everything with an id and a name, minus the 2 Switch 2 entries
+});
+
+// Regression test: there's no way to dump/back up a Switch 2 game, so neither
+// a "Switch 2 Edition" listing nor a native Switch 2 exclusive should ever
+// appear in search results, under any filter combination.
+test('search: Switch 2 titles never appear in results, regardless of filters', () => {
+  const names = new Set();
+  for (const contentType of ['game', 'all']) {
+    for (const owned of ['all', 'owned', 'missing']) {
+      const { results } = store.search(REGION, '', { contentType, owned });
+      for (const r of results) names.add(r.name);
+    }
+  }
+  assert.equal(names.has('Native Switch2 Game'), false);
+  assert.equal(names.has('Test Game – Nintendo Switch 2 Edition'), false);
 });
 
 test('search: name matching is word-order-independent, not a single substring', () => {
@@ -135,13 +139,13 @@ test('search: sort option controls order (name-desc, date-desc, date-asc)', () =
 
 test('search: text query matches by name, still filtered to games by default', () => {
   const { total, results } = store.search(REGION, 'Test Game');
-  assert.equal(total, 2);
-  assert.deepEqual(results.map((r) => r.name).sort(), ['Test Game', 'Test Game – Nintendo Switch 2 Edition']);
+  assert.equal(total, 1);
+  assert.equal(results[0].name, 'Test Game');
 });
 
 test('search: text query with contentType "all" also returns the DLC and demo matches', () => {
   const { total, results } = store.search(REGION, 'Test Game', { contentType: 'all' });
-  assert.equal(total, 4);
+  assert.equal(total, 3); // Test Game, DLC Pack, Demo — not the Switch 2 Edition
   const dlc = results.find((r) => r.name === 'Test Game DLC Pack');
   const demo = results.find((r) => r.name === 'Test Game Demo');
   assert.equal(dlc.contentType, 'dlc');
@@ -153,23 +157,10 @@ test('search: nsuId field matching', () => {
   assert.ok(results.some((r) => r.nsuId === 10));
 });
 
-test('search: platform filter', () => {
-  const switch2Only = store.search(REGION, '', { platform: 'switch2' });
-  assert.deepEqual(switch2Only.results.map((r) => r.name).sort(), ['Native Switch2 Game', 'Test Game – Nintendo Switch 2 Edition']);
-
-  const switchOnly = store.search(REGION, '', { platform: 'switch' });
-  assert.deepEqual(switchOnly.results.map((r) => r.name).sort(), [
-    'Base For DLC Test',
-    'Digimon Story Time Stranger',
-    'Digimon Survive',
-    'Test Game',
-  ]);
-});
-
 test('search: language filter (OR across selected codes)', () => {
   const { total, results } = store.search(REGION, '', { languages: ['fr'] });
   assert.equal(total, 1);
-  assert.equal(results[0].name, 'Native Switch2 Game');
+  assert.equal(results[0].name, 'Base For DLC Test'); // Native Switch2 Game also has 'fr' but is excluded entirely
 });
 
 test('getAvailableLanguages returns the sorted set actually used in the region', () => {
@@ -180,12 +171,36 @@ test('search: owned filter reflects accepted Library Scan decisions', () => {
   decisions.setDecision('some-file.nsp', { status: 'accepted', titleId: '0100000000000001', region: REGION });
 
   const owned = store.search(REGION, '', { owned: 'owned', contentType: 'all' });
-  assert.equal(owned.total, 2); // both entries sharing that titleId
-  assert.ok(owned.results.every((r) => r.owned === true));
+  assert.equal(owned.total, 1);
+  assert.equal(owned.results[0].name, 'Test Game');
 
   const missing = store.search(REGION, '', { owned: 'missing', contentType: 'all' });
-  assert.equal(missing.total, 7);
+  assert.equal(missing.total, 6);
   assert.ok(missing.results.every((r) => r.owned === false));
+
+  decisions.clearDecision('some-file.nsp');
+});
+
+// Regression test: accepting a file for a titleId shared with a "Switch 2
+// Edition" listing must never surface that listing at all (not even as an
+// unowned row) — there's no way to dump/back up a Switch 2 game.
+test('search: accepting a shared titleId never surfaces its Switch 2 Edition sibling', () => {
+  decisions.setDecision('some-file.nsp', { status: 'accepted', titleId: '0100000000000001', region: REGION });
+
+  const { results } = store.search(REGION, '', { contentType: 'all' });
+  assert.equal(results.some((r) => r.name === 'Test Game – Nintendo Switch 2 Edition'), false);
+  assert.equal(results.find((r) => r.name === 'Test Game').owned, true);
+
+  decisions.clearDecision('some-file.nsp');
+});
+
+test('search: a native Switch 2 title never appears in results, even if somehow accepted', () => {
+  decisions.setDecision('native-switch2.nsp', { status: 'accepted', titleId: '0400000000000002', region: REGION });
+
+  const { results } = store.search(REGION, '', { owned: 'owned', contentType: 'all' });
+  assert.equal(results.some((r) => r.name === 'Native Switch2 Game'), false);
+
+  decisions.clearDecision('native-switch2.nsp');
 });
 
 test('getDemosFor matches a demo to its base game by stripped name', () => {

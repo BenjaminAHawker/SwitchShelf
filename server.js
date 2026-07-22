@@ -80,7 +80,7 @@ app.get('/api/languages', (req, res) => {
 });
 
 app.get('/api/search', (req, res) => {
-  const { region, q, field, platform, contentType, owned, languages, sort } = req.query;
+  const { region, q, field, contentType, owned, languages, sort } = req.query;
   if (!region) {
     return res.status(400).json({ error: 'region query param is required' });
   }
@@ -89,7 +89,6 @@ app.get('/api/search', (req, res) => {
   }
   const { total, results } = store.search(region, q, {
     field: field || 'all',
-    platform: platform || 'all',
     contentType: contentType || 'game',
     owned: owned || 'all',
     languages: languages ? languages.split(',').filter(Boolean) : [],
@@ -113,7 +112,11 @@ app.get('/api/title', (req, res) => {
   }
 
   const title = store.findByTitleId(region, titleId);
-  if (!title) {
+  // findByTitleId prefers a Switch sibling when one exists, but a titleId with
+  // no Switch release at all (a native Switch 2 exclusive) can still resolve
+  // straight to a Switch 2 entry — there's no way to dump/back up a Switch 2
+  // game, so treat that the same as not found.
+  if (!title || store.isSwitch2(title)) {
     return res.status(404).json({ error: `No title with id ${titleId} found in ${region}` });
   }
 
@@ -121,9 +124,8 @@ app.get('/api/title', (req, res) => {
     region,
     title: {
       ...title,
-      isSwitch2: store.isSwitch2(title),
       contentType: store.getContentType(title),
-      owned: title.id ? decisions.getAcceptedTitleIds().has(String(title.id).toUpperCase()) : false,
+      owned: store.isOwned(region, title),
     },
     hasExpansions: cnmts.isDownloaded() ? cnmts.getRelated(title.id).length > 0 : null,
     demos: store.getDemosFor(region, title).map((d) => ({
@@ -175,14 +177,10 @@ app.get('/api/library/scan', (req, res) => {
   const results = files.map((file) => {
     const decision = saved[file.path];
     const lookupId = decision?.titleId || file.titleId;
-    const { match, variantOptions } = lookupId
-      ? store.resolveVariant(region, lookupId, decision?.variant)
-      : { match: null, variantOptions: null };
+    const match = lookupId ? store.findByTitleId(region, lookupId) : null;
     return {
       ...file,
       match: match ? { ...match, contentType: store.getContentType(match) } : null,
-      variantOptions,
-      variant: decision?.variant || null,
       versionOverride: decision?.version || null,
       status: decision ? decision.status : 'pending',
       decidedTitleId: decision?.titleId || null,
@@ -231,14 +229,10 @@ app.get('/api/staging/scan', (req, res) => {
   const results = files.map((file) => {
     const decision = saved[file.path];
     const lookupId = decision?.titleId || file.titleId;
-    const { match, variantOptions } = lookupId
-      ? store.resolveVariant(region, lookupId, decision?.variant)
-      : { match: null, variantOptions: null };
+    const match = lookupId ? store.findByTitleId(region, lookupId) : null;
     return {
       ...file,
       match: match ? { ...match, contentType: store.getContentType(match) } : null,
-      variantOptions,
-      variant: decision?.variant || null,
       versionOverride: decision?.version || null,
       status: decision ? decision.status : 'pending',
       decidedTitleId: decision?.titleId || null,
@@ -270,20 +264,17 @@ app.get('/api/staging/scan', (req, res) => {
 });
 
 app.post('/api/staging/decision', (req, res) => {
-  const { path: filePath, status, titleId, region, variant, version } = req.body || {};
+  const { path: filePath, status, titleId, region, version } = req.body || {};
   if (!filePath || !status) {
     return res.status(400).json({ error: 'path and status are required' });
   }
   if (!['accepted', 'rejected'].includes(status)) {
     return res.status(400).json({ error: 'status must be "accepted" or "rejected"' });
   }
-  if (variant !== undefined && variant !== null && !['switch', 'switch2'].includes(variant)) {
-    return res.status(400).json({ error: 'variant must be "switch", "switch2", or null' });
-  }
   if (version !== undefined && version !== null && !/^\d+$/.test(version)) {
     return res.status(400).json({ error: 'version must be a non-negative integer, or null' });
   }
-  const saved = decisions.setDecision(filePath, { status, titleId, region, variant, version }, 'staging');
+  const saved = decisions.setDecision(filePath, { status, titleId, region, version }, 'staging');
   res.json({ path: filePath, ...saved });
 });
 
@@ -333,20 +324,17 @@ app.post('/api/staging/organize/apply', (req, res) => {
 });
 
 app.post('/api/library/decision', (req, res) => {
-  const { path: filePath, status, titleId, region, variant, version } = req.body || {};
+  const { path: filePath, status, titleId, region, version } = req.body || {};
   if (!filePath || !status) {
     return res.status(400).json({ error: 'path and status are required' });
   }
   if (!['accepted', 'rejected'].includes(status)) {
     return res.status(400).json({ error: 'status must be "accepted" or "rejected"' });
   }
-  if (variant !== undefined && variant !== null && !['switch', 'switch2'].includes(variant)) {
-    return res.status(400).json({ error: 'variant must be "switch", "switch2", or null' });
-  }
   if (version !== undefined && version !== null && !/^\d+$/.test(version)) {
     return res.status(400).json({ error: 'version must be a non-negative integer, or null' });
   }
-  const saved = decisions.setDecision(filePath, { status, titleId, region, variant, version });
+  const saved = decisions.setDecision(filePath, { status, titleId, region, version });
   res.json({ path: filePath, ...saved });
 });
 

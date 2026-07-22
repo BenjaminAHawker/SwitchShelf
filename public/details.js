@@ -64,7 +64,6 @@ function render(title, hasExpansions, demos) {
   pageTitle.textContent = title.name || '(no name)';
   document.title = `${title.name || 'Title Details'} - SwitchShelf`;
 
-  const platformBadge = `<span class="badge ${title.isSwitch2 ? 'badge-switch2' : 'badge-switch'}">${title.isSwitch2 ? 'Switch 2' : 'Switch'}</span>`;
   const contentTypeBadge = title.contentType && title.contentType !== 'base'
     ? `<span class="badge badge-type-${title.contentType}">${esc(title.contentType)}</span>`
     : '';
@@ -111,7 +110,7 @@ function render(title, hasExpansions, demos) {
       ${title.iconUrl ? `<img class="detail-icon" src="${esc(title.iconUrl)}" alt="" />` : ''}
       <div class="detail-header-text">
         <h2 class="detail-name">${esc(title.name || '(no name)')}</h2>
-        <div class="detail-badges">${platformBadge}${contentTypeBadge}${ownedBadge}</div>
+        <div class="detail-badges">${contentTypeBadge}${ownedBadge}</div>
       </div>
     </div>
     ${title.intro ? `<p class="detail-intro">${esc(title.intro)}</p>` : ''}

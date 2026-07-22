@@ -191,13 +191,8 @@ function initScanPage(config) {
 
     const matchTd = document.createElement('td');
     renderMatchCell(matchTd, item.match);
-    if (item.status === 'accepted') {
-      if (item.variantOptions) {
-        renderVariantToggle(matchTd, item, region);
-      }
-      if (item.match && item.match.contentType !== 'dlc') {
-        renderVersionEditor(matchTd, item, region);
-      }
+    if (item.status === 'accepted' && item.match && item.match.contentType !== 'dlc') {
+      renderVersionEditor(matchTd, item, region);
     }
     tr.appendChild(matchTd);
 
@@ -268,7 +263,6 @@ function initScanPage(config) {
           row.addEventListener('click', () => {
             item.match = title;
             item.decidedTitleId = title.id;
-            item.variantOptions = null; // a specific search hit, not a resolved id — no known siblings
             renderMatchCell(matchTd, title);
             if (item.status === 'accepted' && title.contentType !== 'dlc') {
               renderVersionEditor(matchTd, item, region);
@@ -321,61 +315,13 @@ function initScanPage(config) {
     cell.appendChild(details);
   }
 
-  // titledb sometimes lists a title's original Switch release and its "Switch 2
-  // Edition" as two catalog entries sharing the same titleId. When that happens,
-  // let the user pick which one this file actually is.
-  function renderVariantToggle(cell, item, region) {
-    const label = document.createElement('label');
-    label.className = 'checkbox-item variant-toggle';
-
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = item.variant === 'switch2';
-    label.appendChild(checkbox);
-    label.append('Use Switch 2 Edition');
-    cell.appendChild(label);
-
-    checkbox.addEventListener('change', async () => {
-      const variant = checkbox.checked ? 'switch2' : 'switch';
-      checkbox.disabled = true;
-      try {
-        await setVariant(item, region, variant);
-        item.variant = variant;
-        item.match = variant === 'switch2' ? item.variantOptions.switch2 : item.variantOptions.switch;
-        renderMatchCell(cell, item.match);
-        renderVariantToggle(cell, item, region);
-      } catch (err) {
-        await showAlert(err.message, 'Error');
-        checkbox.checked = !checkbox.checked;
-        checkbox.disabled = false;
-      }
-    });
-  }
-
-  async function setVariant(item, region, variant) {
-    const res = await fetch(`${apiBase}/decision`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        path: item.path,
-        status: item.status === 'pending' ? 'accepted' : item.status,
-        titleId: item.decidedTitleId || item.titleId,
-        region,
-        variant,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to save variant');
-    if (item.status === 'pending') item.status = 'accepted';
-  }
-
   // Base games and updates are organized as "<Name> [<Id>][<version>]<ext>".
   // The version normally comes from a "[vNNN]" tag in the filename, but not
   // every update file carries one — this lets it be set (or corrected) by
   // hand, e.g. to file a bare "Game Update.nsp" as the specific version it is.
   function renderVersionEditor(cell, item, region) {
     const label = document.createElement('label');
-    label.className = 'checkbox-item variant-toggle';
+    label.className = 'checkbox-item field-note';
     label.append('Version');
 
     const input = document.createElement('input');
@@ -533,41 +479,6 @@ function initScanPage(config) {
 
     const toTd = document.createElement('td');
     toTd.innerHTML = `<code>${item.to}</code>`;
-    if (item.variantOptions) {
-      const label = document.createElement('label');
-      label.className = 'checkbox-item variant-toggle';
-      const variantCheckbox = document.createElement('input');
-      variantCheckbox.type = 'checkbox';
-      variantCheckbox.checked = item.selectedVariant === 'switch2';
-      label.appendChild(variantCheckbox);
-      label.append('Use Switch 2 Edition');
-      toTd.appendChild(document.createElement('br'));
-      toTd.appendChild(label);
-
-      variantCheckbox.addEventListener('change', async () => {
-        variantCheckbox.disabled = true;
-        try {
-          const res = await fetch(`${apiBase}/decision`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              path: item.path,
-              status: 'accepted',
-              titleId: item.titleId,
-              region,
-              variant: variantCheckbox.checked ? 'switch2' : 'switch',
-            }),
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Failed to save variant');
-          await loadOrganizePlan();
-        } catch (err) {
-          await showAlert(err.message, 'Error');
-          variantCheckbox.checked = !variantCheckbox.checked;
-          variantCheckbox.disabled = false;
-        }
-      });
-    }
     tr.appendChild(toTd);
 
     const typeTd = document.createElement('td');

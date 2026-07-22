@@ -7,7 +7,6 @@ const cnmtsSyncBtn = document.getElementById('cnmts-sync-btn');
 const cnmtsStatus = document.getElementById('cnmts-status');
 const searchInput = document.getElementById('search-input');
 const fieldSelect = document.getElementById('field-select');
-const platformSelect = document.getElementById('platform-select');
 const contentSelect = document.getElementById('content-select');
 const ownedSelect = document.getElementById('owned-select');
 const languageCheckboxes = document.getElementById('language-checkboxes');
@@ -246,7 +245,6 @@ async function runSearch() {
     region,
     q,
     field: fieldSelect.value,
-    platform: platformSelect.value,
     contentType: contentSelect.value,
     owned: ownedSelect.value,
     languages: [...selectedLanguages].join(','),
@@ -318,25 +316,21 @@ function renderResultRow(title, region) {
   dateTd.textContent = fmtReleaseDate(title.releaseDate);
   tr.appendChild(dateTd);
 
-  const platformTd = document.createElement('td');
-  platformTd.className = 'badge-cell';
-  const platformBadge = document.createElement('span');
-  platformBadge.className = `badge ${title.isSwitch2 ? 'badge-switch2' : 'badge-switch'}`;
-  platformBadge.textContent = title.isSwitch2 ? 'Switch 2' : 'Switch';
-  platformTd.appendChild(platformBadge);
+  const badgesTd = document.createElement('td');
+  badgesTd.className = 'badge-cell';
   if (title.contentType === 'dlc' || title.contentType === 'update' || title.contentType === 'demo') {
     const typeBadge = document.createElement('span');
     typeBadge.className = `badge badge-type-${title.contentType}`;
     typeBadge.textContent = title.contentType;
-    platformTd.appendChild(typeBadge);
+    badgesTd.appendChild(typeBadge);
   }
   if (title.owned) {
     const ownedBadge = document.createElement('span');
     ownedBadge.className = 'badge badge-owned';
     ownedBadge.textContent = 'Owned';
-    platformTd.appendChild(ownedBadge);
+    badgesTd.appendChild(ownedBadge);
   }
-  tr.appendChild(platformTd);
+  tr.appendChild(badgesTd);
 
   const expandTd = document.createElement('td');
   if (title.id && title.hasExpansions !== false) {
@@ -465,7 +459,6 @@ async function buildExpandRow(title, region) {
 
 searchInput.addEventListener('input', scheduleSearch);
 fieldSelect.addEventListener('change', scheduleSearch);
-platformSelect.addEventListener('change', scheduleSearch);
 contentSelect.addEventListener('change', scheduleSearch);
 ownedSelect.addEventListener('change', scheduleSearch);
 
