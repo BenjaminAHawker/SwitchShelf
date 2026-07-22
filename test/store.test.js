@@ -179,13 +179,44 @@ test('getAvailableLanguages returns the sorted set actually used in the region',
 test('search: owned filter reflects accepted Library Scan decisions', () => {
   decisions.setDecision('some-file.nsp', { status: 'accepted', titleId: '0100000000000001', region: REGION });
 
+  // No variant was recorded, which resolveVariant treats as "the Switch
+  // entry" — so only that one sibling counts as owned, not both.
   const owned = store.search(REGION, '', { owned: 'owned', contentType: 'all' });
-  assert.equal(owned.total, 2); // both entries sharing that titleId
-  assert.ok(owned.results.every((r) => r.owned === true));
+  assert.equal(owned.total, 1);
+  assert.equal(owned.results[0].name, 'Test Game');
 
   const missing = store.search(REGION, '', { owned: 'missing', contentType: 'all' });
-  assert.equal(missing.total, 7);
+  assert.equal(missing.total, 8); // includes the Switch 2 Edition sibling
   assert.ok(missing.results.every((r) => r.owned === false));
+
+  decisions.clearDecision('some-file.nsp');
+});
+
+// Regression test: Switch and Switch 2 Edition catalog entries share a
+// titleId, so accepting one variant in Library Scan must not also mark its
+// sibling as owned.
+test('search: accepting the Switch 2 Edition variant only marks that entry owned, not its Switch sibling', () => {
+  decisions.setDecision('some-file-switch2.nsp', { status: 'accepted', titleId: '0100000000000001', region: REGION, variant: 'switch2' });
+
+  const owned = store.search(REGION, '', { owned: 'owned', contentType: 'all' });
+  assert.equal(owned.total, 1);
+  assert.equal(owned.results[0].name, 'Test Game – Nintendo Switch 2 Edition');
+
+  const missing = store.search(REGION, '', { owned: 'missing', contentType: 'all' });
+  assert.ok(missing.results.some((r) => r.name === 'Test Game'));
+
+  decisions.clearDecision('some-file-switch2.nsp');
+});
+
+test('search: a title with no Switch/Switch2 sibling is owned regardless of its variant field', () => {
+  // Native Switch 2 title (id 0400...) has no sibling to disambiguate from.
+  decisions.setDecision('native-switch2.nsp', { status: 'accepted', titleId: '0400000000000002', region: REGION });
+
+  const { results } = store.search(REGION, '', { owned: 'owned', contentType: 'all' });
+  assert.equal(results.length, 1);
+  assert.equal(results[0].name, 'Native Switch2 Game');
+
+  decisions.clearDecision('native-switch2.nsp');
 });
 
 test('getDemosFor matches a demo to its base game by stripped name', () => {

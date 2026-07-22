@@ -123,7 +123,7 @@ app.get('/api/title', (req, res) => {
       ...title,
       isSwitch2: store.isSwitch2(title),
       contentType: store.getContentType(title),
-      owned: title.id ? decisions.getAcceptedTitleIds().has(String(title.id).toUpperCase()) : false,
+      owned: store.isOwned(region, title),
     },
     hasExpansions: cnmts.isDownloaded() ? cnmts.getRelated(title.id).length > 0 : null,
     demos: store.getDemosFor(region, title).map((d) => ({
