@@ -56,22 +56,18 @@ test('findByTitleId / findAllByTitleId return null/[] for an unknown id', () => 
   assert.deepEqual(store.findAllByTitleId(REGION, 'DEADBEEFDEADBEEF'), []);
 });
 
-test('resolveVariant offers both options and defaults to Switch', () => {
-  const { match, variantOptions } = store.resolveVariant(REGION, '0100000000000001', null);
+// There's no way to dump/back up a Switch 2 game, so a titleId shared by a
+// Switch release and a "Switch 2 Edition" listing must always resolve to the
+// Switch entry — there's no toggle or preference to honor anymore.
+test('findByTitleId always resolves a shared id to the Switch entry, never the Switch 2 Edition', () => {
+  const match = store.findByTitleId(REGION, '0100000000000001');
   assert.equal(match.name, 'Test Game');
-  assert.ok(variantOptions.switch);
-  assert.ok(variantOptions.switch2);
+  assert.equal(match.isSwitch2, false);
 });
 
-test('resolveVariant honors an explicit switch2 preference', () => {
-  const { match } = store.resolveVariant(REGION, '0100000000000001', 'switch2');
-  assert.equal(match.name, 'Test Game – Nintendo Switch 2 Edition');
-});
-
-test('resolveVariant reports no variantOptions when there is only one candidate', () => {
-  const { match, variantOptions } = store.resolveVariant(REGION, '0400000000000002', null);
+test('findByTitleId still resolves a native Switch 2 title (no Switch sibling to prefer)', () => {
+  const match = store.findByTitleId(REGION, '0400000000000002');
   assert.equal(match.name, 'Native Switch2 Game');
-  assert.equal(variantOptions, null);
 });
 
 test('getContentType falls back to a no-icon heuristic before cnmts.json exists', () => {
@@ -179,8 +175,6 @@ test('getAvailableLanguages returns the sorted set actually used in the region',
 test('search: owned filter reflects accepted Library Scan decisions', () => {
   decisions.setDecision('some-file.nsp', { status: 'accepted', titleId: '0100000000000001', region: REGION });
 
-  // No variant was recorded, which resolveVariant treats as "the Switch
-  // entry" — so only that one sibling counts as owned, not both.
   const owned = store.search(REGION, '', { owned: 'owned', contentType: 'all' });
   assert.equal(owned.total, 1);
   assert.equal(owned.results[0].name, 'Test Game');
@@ -192,23 +186,23 @@ test('search: owned filter reflects accepted Library Scan decisions', () => {
   decisions.clearDecision('some-file.nsp');
 });
 
-// Regression test: Switch and Switch 2 Edition catalog entries share a
-// titleId, so accepting one variant in Library Scan must not also mark its
-// sibling as owned.
-test('search: accepting the Switch 2 Edition variant only marks that entry owned, not its Switch sibling', () => {
-  decisions.setDecision('some-file-switch2.nsp', { status: 'accepted', titleId: '0100000000000001', region: REGION, variant: 'switch2' });
+// Regression test: there's no way to dump/back up a Switch 2 game, so a
+// "Switch 2 Edition" catalog entry can never be owned locally — even though
+// it shares a titleId with (and would otherwise inherit "owned" from) a
+// Switch release the user does have.
+test('search: the Switch 2 Edition entry can never show as owned, even when its Switch sibling is', () => {
+  decisions.setDecision('some-file.nsp', { status: 'accepted', titleId: '0100000000000001', region: REGION });
 
-  const owned = store.search(REGION, '', { owned: 'owned', contentType: 'all' });
-  assert.equal(owned.total, 1);
-  assert.equal(owned.results[0].name, 'Test Game – Nintendo Switch 2 Edition');
+  const { results } = store.search(REGION, '', { contentType: 'all' });
+  const switchEntry = results.find((r) => r.name === 'Test Game');
+  const switch2Entry = results.find((r) => r.name === 'Test Game – Nintendo Switch 2 Edition');
+  assert.equal(switchEntry.owned, true);
+  assert.equal(switch2Entry.owned, false);
 
-  const missing = store.search(REGION, '', { owned: 'missing', contentType: 'all' });
-  assert.ok(missing.results.some((r) => r.name === 'Test Game'));
-
-  decisions.clearDecision('some-file-switch2.nsp');
+  decisions.clearDecision('some-file.nsp');
 });
 
-test('search: a title with no Switch/Switch2 sibling is owned regardless of its variant field', () => {
+test('search: a title with no Switch/Switch2 sibling is owned normally', () => {
   // Native Switch 2 title (id 0400...) has no sibling to disambiguate from.
   decisions.setDecision('native-switch2.nsp', { status: 'accepted', titleId: '0400000000000002', region: REGION });
 

@@ -10,26 +10,21 @@ test('readAll returns an empty object when nothing has been decided yet', () => 
   assert.deepEqual(decisions.readAll(), {});
 });
 
-test('setDecision stores status, titleId, region and a null variant/version by default', () => {
+test('setDecision stores status, titleId, region and a null version by default', () => {
   const saved = decisions.setDecision('Game A.nsp', { status: 'accepted', titleId: '0100000000000001', region: 'US.en.json' });
   assert.equal(saved.status, 'accepted');
   assert.equal(saved.titleId, '0100000000000001');
   assert.equal(saved.region, 'US.en.json');
-  assert.equal(saved.variant, null);
   assert.equal(saved.version, null);
   assert.ok(saved.decidedAt);
 });
 
-test('setDecision preserves an existing variant when the call omits it', () => {
-  decisions.setDecision('Game B.nsp', { status: 'accepted', titleId: '0100000000000002', region: 'US.en.json', variant: 'switch2' });
-  const reAccepted = decisions.setDecision('Game B.nsp', { status: 'accepted', titleId: '0100000000000002', region: 'US.en.json' });
-  assert.equal(reAccepted.variant, 'switch2');
-});
-
-test('setDecision overwrites the variant when one is explicitly provided', () => {
-  decisions.setDecision('Game C.nsp', { status: 'accepted', titleId: '0100000000000003', region: 'US.en.json', variant: 'switch2' });
-  const updated = decisions.setDecision('Game C.nsp', { status: 'accepted', titleId: '0100000000000003', region: 'US.en.json', variant: 'switch' });
-  assert.equal(updated.variant, 'switch');
+// Fixture decisions for the getAcceptedTitleIds test below.
+test('setDecision accepts additional decisions for later id-lookup tests', () => {
+  const b = decisions.setDecision('Game B.nsp', { status: 'accepted', titleId: '0100000000000002', region: 'US.en.json' });
+  const c = decisions.setDecision('Game C.nsp', { status: 'accepted', titleId: '0100000000000003', region: 'US.en.json' });
+  assert.equal(b.titleId, '0100000000000002');
+  assert.equal(c.titleId, '0100000000000003');
 });
 
 test('setDecision preserves an existing version when the call omits it', () => {

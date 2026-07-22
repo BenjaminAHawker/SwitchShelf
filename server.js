@@ -175,14 +175,10 @@ app.get('/api/library/scan', (req, res) => {
   const results = files.map((file) => {
     const decision = saved[file.path];
     const lookupId = decision?.titleId || file.titleId;
-    const { match, variantOptions } = lookupId
-      ? store.resolveVariant(region, lookupId, decision?.variant)
-      : { match: null, variantOptions: null };
+    const match = lookupId ? store.findByTitleId(region, lookupId) : null;
     return {
       ...file,
       match: match ? { ...match, contentType: store.getContentType(match) } : null,
-      variantOptions,
-      variant: decision?.variant || null,
       versionOverride: decision?.version || null,
       status: decision ? decision.status : 'pending',
       decidedTitleId: decision?.titleId || null,
@@ -231,14 +227,10 @@ app.get('/api/staging/scan', (req, res) => {
   const results = files.map((file) => {
     const decision = saved[file.path];
     const lookupId = decision?.titleId || file.titleId;
-    const { match, variantOptions } = lookupId
-      ? store.resolveVariant(region, lookupId, decision?.variant)
-      : { match: null, variantOptions: null };
+    const match = lookupId ? store.findByTitleId(region, lookupId) : null;
     return {
       ...file,
       match: match ? { ...match, contentType: store.getContentType(match) } : null,
-      variantOptions,
-      variant: decision?.variant || null,
       versionOverride: decision?.version || null,
       status: decision ? decision.status : 'pending',
       decidedTitleId: decision?.titleId || null,
@@ -270,20 +262,17 @@ app.get('/api/staging/scan', (req, res) => {
 });
 
 app.post('/api/staging/decision', (req, res) => {
-  const { path: filePath, status, titleId, region, variant, version } = req.body || {};
+  const { path: filePath, status, titleId, region, version } = req.body || {};
   if (!filePath || !status) {
     return res.status(400).json({ error: 'path and status are required' });
   }
   if (!['accepted', 'rejected'].includes(status)) {
     return res.status(400).json({ error: 'status must be "accepted" or "rejected"' });
   }
-  if (variant !== undefined && variant !== null && !['switch', 'switch2'].includes(variant)) {
-    return res.status(400).json({ error: 'variant must be "switch", "switch2", or null' });
-  }
   if (version !== undefined && version !== null && !/^\d+$/.test(version)) {
     return res.status(400).json({ error: 'version must be a non-negative integer, or null' });
   }
-  const saved = decisions.setDecision(filePath, { status, titleId, region, variant, version }, 'staging');
+  const saved = decisions.setDecision(filePath, { status, titleId, region, version }, 'staging');
   res.json({ path: filePath, ...saved });
 });
 
@@ -333,20 +322,17 @@ app.post('/api/staging/organize/apply', (req, res) => {
 });
 
 app.post('/api/library/decision', (req, res) => {
-  const { path: filePath, status, titleId, region, variant, version } = req.body || {};
+  const { path: filePath, status, titleId, region, version } = req.body || {};
   if (!filePath || !status) {
     return res.status(400).json({ error: 'path and status are required' });
   }
   if (!['accepted', 'rejected'].includes(status)) {
     return res.status(400).json({ error: 'status must be "accepted" or "rejected"' });
   }
-  if (variant !== undefined && variant !== null && !['switch', 'switch2'].includes(variant)) {
-    return res.status(400).json({ error: 'variant must be "switch", "switch2", or null' });
-  }
   if (version !== undefined && version !== null && !/^\d+$/.test(version)) {
     return res.status(400).json({ error: 'version must be a non-negative integer, or null' });
   }
-  const saved = decisions.setDecision(filePath, { status, titleId, region, variant, version });
+  const saved = decisions.setDecision(filePath, { status, titleId, region, version });
   res.json({ path: filePath, ...saved });
 });
 
