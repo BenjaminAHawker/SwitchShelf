@@ -1,0 +1,17 @@
+name: switchshelf
+
+services:
+  switchshelf:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - TITLES_DIR=/titles
+    volumes:
+      - titledb-data:/app/data
+      - ${TITLES_HOST_DIR:-./titles}:/titles
+    restart: unless-stopped
+
+volumes:
+  titledb-data:
+    name: switchshelf_titledb-data
