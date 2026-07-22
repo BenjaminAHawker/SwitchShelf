@@ -9,9 +9,25 @@ const organize = require('./lib/organize');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const STAGING_ENABLED = String(process.env.STAGING_ENABLED).toLowerCase() === 'true';
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Lets the frontend know which optional features are turned on, e.g. to hide
+// the Staging nav link/page entirely when it's disabled.
+app.get('/api/config', (req, res) => {
+  res.json({ stagingEnabled: STAGING_ENABLED });
+});
+
+// Applied to every /api/staging/* route below, so the feature is fully off
+// (not just hidden in the UI) unless explicitly enabled.
+app.use('/api/staging', (req, res, next) => {
+  if (!STAGING_ENABLED) {
+    return res.status(404).json({ error: 'Staging is disabled. Set STAGING_ENABLED=true to enable it.' });
+  }
+  next();
+});
 
 app.get('/api/regions', async (req, res) => {
   try {
@@ -203,6 +219,121 @@ app.get('/api/library/scan', (req, res) => {
     results,
     hint,
   });
+});
+
+app.get('/api/staging/scan', (req, res) => {
+  const { region } = req.query;
+  if (!region) {
+    return res.status(400).json({ error: 'region query param is required' });
+  }
+  if (!scanner.isStagingConfigured()) {
+    return res.status(409).json({ error: 'No staging folder mounted. Set STAGING_DIR / the staging volume in docker-compose.yml.' });
+  }
+  if (!store.isDownloaded(region)) {
+    return res.status(409).json({ error: `${region} has not been downloaded yet. POST /api/sync first.` });
+  }
+
+  const files = scanner.scanStaging();
+  const saved = decisions.readAllFor('staging');
+
+  const results = files.map((file) => {
+    const decision = saved[file.path];
+    const lookupId = decision?.titleId || file.titleId;
+    const { match, variantOptions } = lookupId
+      ? store.resolveVariant(region, lookupId, decision?.variant)
+      : { match: null, variantOptions: null };
+    return {
+      ...file,
+      match,
+      variantOptions,
+      variant: decision?.variant || null,
+      status: decision ? decision.status : 'pending',
+      decidedTitleId: decision?.titleId || null,
+    };
+  });
+
+  results.sort((a, b) => {
+    const order = { pending: 0, accepted: 1, rejected: 2 };
+    return order[a.status] - order[b.status] || a.fileName.localeCompare(b.fileName);
+  });
+
+  let hint = null;
+  if (results.length === 0) {
+    const diag = scanner.getStagingDiagnostics();
+    if (diag.totalFiles === 0) {
+      hint = `No files found in ${diag.stagingDir} inside the container. If you set/changed STAGING_HOST_DIR in .env, make sure the container was rebuilt/restarted afterward (docker compose up -d --build), and that the path actually contains files on the host.`;
+    } else if (diag.matchedFiles === 0) {
+      hint = `Found ${diag.totalFiles} file(s) in ${diag.stagingDir}, but none have a supported extension (.nsp, .nsz, .xci, .xcz).`;
+    }
+  }
+
+  res.json({
+    stagingDir: scanner.STAGING_DIR,
+    region,
+    count: results.length,
+    results,
+    hint,
+  });
+});
+
+app.post('/api/staging/decision', (req, res) => {
+  const { path: filePath, status, titleId, region, variant } = req.body || {};
+  if (!filePath || !status) {
+    return res.status(400).json({ error: 'path and status are required' });
+  }
+  if (!['accepted', 'rejected'].includes(status)) {
+    return res.status(400).json({ error: 'status must be "accepted" or "rejected"' });
+  }
+  if (variant !== undefined && variant !== null && !['switch', 'switch2'].includes(variant)) {
+    return res.status(400).json({ error: 'variant must be "switch", "switch2", or null' });
+  }
+  const saved = decisions.setDecision(filePath, { status, titleId, region, variant }, 'staging');
+  res.json({ path: filePath, ...saved });
+});
+
+app.delete('/api/staging/decision', (req, res) => {
+  const { path: filePath } = req.body || {};
+  if (!filePath) {
+    return res.status(400).json({ error: 'path is required' });
+  }
+  decisions.clearDecision(filePath, 'staging');
+  res.json({ path: filePath, cleared: true });
+});
+
+app.get('/api/staging/organize/plan', (req, res) => {
+  const { region } = req.query;
+  if (!region) {
+    return res.status(400).json({ error: 'region query param is required' });
+  }
+  if (!scanner.isStagingConfigured()) {
+    return res.status(409).json({ error: 'No staging folder mounted. Set STAGING_DIR / the staging volume in docker-compose.yml.' });
+  }
+  if (!scanner.isConfigured()) {
+    return res.status(409).json({ error: 'No title folder mounted. Set TITLES_DIR / the titles volume in docker-compose.yml.' });
+  }
+  if (!store.isDownloaded(region)) {
+    return res.status(409).json({ error: `${region} has not been downloaded yet. POST /api/sync first.` });
+  }
+  const { plan, skipped } = organize.buildStagingPlan(region);
+  res.json({ stagingDir: scanner.STAGING_DIR, titlesDir: scanner.TITLES_DIR, count: plan.length, plan, skippedCount: skipped.length, skipped });
+});
+
+app.post('/api/staging/organize/apply', (req, res) => {
+  const { region, paths } = req.body || {};
+  if (!region || !Array.isArray(paths) || paths.length === 0) {
+    return res.status(400).json({ error: 'region and a non-empty paths array are required' });
+  }
+  if (!scanner.isStagingConfigured()) {
+    return res.status(409).json({ error: 'No staging folder mounted. Set STAGING_DIR / the staging volume in docker-compose.yml.' });
+  }
+  if (!scanner.isConfigured()) {
+    return res.status(409).json({ error: 'No title folder mounted. Set TITLES_DIR / the titles volume in docker-compose.yml.' });
+  }
+  if (!store.isDownloaded(region)) {
+    return res.status(409).json({ error: `${region} has not been downloaded yet. POST /api/sync first.` });
+  }
+  const { moved, errors } = organize.applyStagingPlan(region, paths);
+  res.json({ movedCount: moved.length, moved, errorCount: errors.length, errors });
 });
 
 app.post('/api/library/decision', (req, res) => {

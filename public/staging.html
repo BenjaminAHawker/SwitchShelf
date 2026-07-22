@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Library Scan - SwitchShelf</title>
+  <title>Staging - SwitchShelf</title>
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
@@ -27,9 +27,9 @@
   <header class="app-header">
     <img src="icons/icon-192.png" alt="" class="app-logo" width="48" height="48" />
     <div>
-      <h1>Library Scan</h1>
-      <p class="subtitle">Match your local title files against titledb. Nothing is accepted automatically &mdash; review each match below.</p>
-      <nav aria-label="Site"><a href="index.html">Search</a> · <a href="scan.html" aria-current="page">Library Scan</a> · <a href="staging.html">Staging</a></nav>
+      <h1>Staging</h1>
+      <p class="subtitle">Drop new files into the Staging folder, match them against titledb, then accept and move them into your Library.</p>
+      <nav aria-label="Site"><a href="index.html">Search</a> · <a href="scan.html">Library Scan</a> · <a href="staging.html" aria-current="page">Staging</a></nav>
     </div>
     <details class="a11y-menu">
       <summary class="a11y-menu-btn" aria-label="Accessibility options"><span aria-hidden="true">&#9855;</span> Accessibility</summary>
@@ -47,7 +47,7 @@
     <section class="controls">
       <label for="region-select">Match against</label>
       <select id="region-select"></select>
-      <button id="scan-btn">Scan library</button>
+      <button id="scan-btn">Scan staging</button>
       <button id="default-region-btn" class="secondary" title="Remember this region and pre-select it on future visits">☆ Set as default</button>
       <span id="scan-status" class="status" role="status" aria-live="polite"></span>
     </section>
@@ -68,7 +68,7 @@
     </table>
 
     <section class="controls">
-      <button id="organize-btn" class="secondary" aria-expanded="false" aria-controls="organize-panel">Organize accepted files &#9662;</button>
+      <button id="organize-btn" class="secondary" aria-expanded="false" aria-controls="organize-panel">Move accepted files to Library &#9662;</button>
       <span id="organize-status" class="status" role="status" aria-live="polite"></span>
     </section>
 
@@ -79,7 +79,7 @@
           <tr>
             <th scope="col"><span class="sr-only">Include</span></th>
             <th scope="col">Current file</th>
-            <th scope="col">New location</th>
+            <th scope="col">New location in Library</th>
             <th scope="col">Type</th>
           </tr>
         </thead>
@@ -105,6 +105,6 @@
   <script src="a11y.js"></script>
   <script src="nav.js"></script>
   <script src="scan-core.js"></script>
-  <script src="scan.js"></script>
+  <script src="staging.js"></script>
 </body>
 </html>

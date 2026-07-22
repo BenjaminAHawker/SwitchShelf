@@ -3,6 +3,8 @@ data/*.json
 !data/.gitkeep
 titles/*
 !titles/.gitkeep
+staging/*
+!staging/.gitkeep
 .env
 .DS_Store
 .claude/

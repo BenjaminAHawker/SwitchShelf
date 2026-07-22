@@ -7,9 +7,12 @@ services:
       - "3000:3000"
     environment:
       - TITLES_DIR=/titles
+      - STAGING_DIR=/staging
+      - STAGING_ENABLED=${STAGING_ENABLED:-false}
     volumes:
       - titledb-data:/app/data
       - ${TITLES_HOST_DIR:-./titles}:/titles
+      - ${STAGING_HOST_DIR:-./staging}:/staging
     restart: unless-stopped
 
 volumes:
