@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SwitchShelf</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>SwitchShelf</h1>
+    <p class="subtitle">Search <a href="https://github.com/blawar/titledb" target="_blank" rel="noopener">blawar/titledb</a> by region</p>
+    <nav><a href="index.html">Search</a> · <a href="scan.html">Library Scan</a></nav>
+  </header>
+
+  <main>
+    <section class="controls">
+      <label for="region-select">Region</label>
+      <select id="region-select"></select>
+      <button id="sync-btn">Sync</button>
+      <button id="default-region-btn" class="secondary" title="Remember this region and pre-select it on future visits">☆ Set as default</button>
+      <span id="sync-status" class="status"></span>
+    </section>
+
+    <section class="controls">
+      <label for="cnmts-toggle">DLC/Updates</label>
+      <span id="cnmts-label" class="status"></span>
+      <button id="cnmts-sync-btn">Sync index</button>
+      <span id="cnmts-status" class="status"></span>
+    </section>
+
+    <section class="controls">
+      <label for="search-input">Search</label>
+      <input id="search-input" type="text" placeholder="Name or nsuId..." autocomplete="off" />
+      <select id="field-select">
+        <option value="all">Name + nsuId</option>
+        <option value="name">Name only</option>
+        <option value="nsuId">nsuId only</option>
+      </select>
+      <select id="platform-select" title="Filter by platform (based on title ID / name, titledb has no explicit platform field)">
+        <option value="all">Switch + Switch 2</option>
+        <option value="switch">Switch only</option>
+        <option value="switch2">Switch 2 only</option>
+      </select>
+      <select id="content-select" title="titledb lists DLC, update editions, and demos as regular catalog entries; this filter tells them apart">
+        <option value="game">Games only</option>
+        <option value="all">Games + DLC + Updates + Demos</option>
+      </select>
+      <select id="owned-select" title="Based on titles you've accepted in Library Scan">
+        <option value="all">Owned + Not owned</option>
+        <option value="owned">Owned only</option>
+        <option value="missing">Not owned</option>
+      </select>
+    </section>
+
+    <section class="controls">
+      <label>Languages</label>
+      <div id="language-checkboxes" class="checkbox-group"></div>
+    </section>
+
+    <section id="results-info" class="status"></section>
+
+    <table id="results">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Name</th>
+          <th>Title ID</th>
+          <th>nsuId</th>
+          <th>Release Date</th>
+          <th>Platform</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="results-body"></tbody>
+    </table>
+  </main>
+
+  <script src="region-pref.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

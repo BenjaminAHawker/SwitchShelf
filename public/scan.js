@@ -1,0 +1,513 @@
+const regionSelect = document.getElementById('region-select');
+const scanBtn = document.getElementById('scan-btn');
+const defaultRegionBtn = document.getElementById('default-region-btn');
+const scanStatus = document.getElementById('scan-status');
+const summary = document.getElementById('summary');
+const resultsBody = document.getElementById('results-body');
+
+let regions = [];
+let currentResults = [];
+
+// --- Web modal, replacing native alert()/confirm() ---
+
+const modalBackdrop = document.getElementById('modal-backdrop');
+const modalTitle = document.getElementById('modal-title');
+const modalMessage = document.getElementById('modal-message');
+const modalCancelBtn = document.getElementById('modal-cancel-btn');
+const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+
+function showModal({ title, message, confirmText = 'OK', cancelText = 'Cancel', showCancel = false }) {
+  return new Promise((resolve) => {
+    modalTitle.textContent = title;
+    modalMessage.textContent = message;
+    modalConfirmBtn.textContent = confirmText;
+    modalCancelBtn.textContent = cancelText;
+    modalCancelBtn.hidden = !showCancel;
+    modalBackdrop.hidden = false;
+
+    const cleanup = (result) => {
+      modalBackdrop.hidden = true;
+      modalConfirmBtn.removeEventListener('click', onConfirm);
+      modalCancelBtn.removeEventListener('click', onCancel);
+      modalBackdrop.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onKeydown);
+      resolve(result);
+    };
+    const onConfirm = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    const onBackdrop = (e) => {
+      if (e.target === modalBackdrop) cleanup(false);
+    };
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') cleanup(false);
+      if (e.key === 'Enter' && showCancel === false) cleanup(true);
+    };
+
+    modalConfirmBtn.addEventListener('click', onConfirm);
+    modalCancelBtn.addEventListener('click', onCancel);
+    modalBackdrop.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKeydown);
+    modalConfirmBtn.focus();
+  });
+}
+
+function showAlert(message, title = 'Notice') {
+  return showModal({ title, message, confirmText: 'OK', showCancel: false });
+}
+
+function showConfirm(message, title = 'Confirm') {
+  return showModal({ title, message, confirmText: 'Confirm', cancelText: 'Cancel', showCancel: true });
+}
+
+async function loadRegions() {
+  const res = await fetch('/api/regions');
+  regions = await res.json();
+  regionSelect.innerHTML = '';
+  for (const r of regions) {
+    const opt = document.createElement('option');
+    opt.value = r.name;
+    opt.textContent = `${r.region} (${r.language})${r.downloaded ? '' : ' - not downloaded'}`;
+    if (!r.downloaded) opt.disabled = true;
+    regionSelect.appendChild(opt);
+  }
+
+  const defaultRegion = RegionPref.get();
+  if (defaultRegion && regions.some((r) => r.name === defaultRegion && r.downloaded)) {
+    regionSelect.value = defaultRegion;
+  }
+  updateDefaultRegionButton();
+}
+
+function updateDefaultRegionButton() {
+  if (!defaultRegionBtn) return;
+  const isDefault = RegionPref.get() === regionSelect.value;
+  defaultRegionBtn.textContent = isDefault ? '★ Default region' : '☆ Set as default';
+  defaultRegionBtn.disabled = isDefault;
+}
+
+regionSelect.addEventListener('change', updateDefaultRegionButton);
+
+defaultRegionBtn?.addEventListener('click', () => {
+  RegionPref.set(regionSelect.value);
+  updateDefaultRegionButton();
+});
+
+scanBtn.addEventListener('click', runScan);
+
+async function runScan() {
+  const region = regionSelect.value;
+  if (!region) return;
+  scanBtn.disabled = true;
+  scanStatus.textContent = 'Scanning...';
+  summary.textContent = '';
+  resultsBody.innerHTML = '';
+
+  try {
+    const res = await fetch(`/api/library/scan?region=${encodeURIComponent(region)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'scan failed');
+
+    currentResults = data.results;
+    scanStatus.textContent = '';
+    const pending = currentResults.filter((r) => r.status === 'pending').length;
+    const accepted = currentResults.filter((r) => r.status === 'accepted').length;
+    const rejected = currentResults.filter((r) => r.status === 'rejected').length;
+    summary.textContent = data.hint
+      ? data.hint
+      : `${data.count} file(s) in ${data.titlesDir} — ${pending} pending, ${accepted} accepted, ${rejected} rejected`;
+
+    render(region);
+  } catch (err) {
+    scanStatus.textContent = `Error: ${err.message}`;
+  } finally {
+    scanBtn.disabled = false;
+  }
+}
+
+function render(region) {
+  resultsBody.innerHTML = '';
+  for (const item of currentResults) {
+    resultsBody.appendChild(renderRow(item, region));
+  }
+}
+
+function renderRow(item, region) {
+  const tr = document.createElement('tr');
+  tr.dataset.path = item.path;
+
+  const fileTd = document.createElement('td');
+  fileTd.title = item.path;
+  const nameLine = document.createElement('div');
+  nameLine.textContent = item.fileName;
+  fileTd.appendChild(nameLine);
+  const lastSlash = item.path.lastIndexOf('/');
+  const location = lastSlash === -1 ? '/' : item.path.slice(0, lastSlash);
+  const pathLine = document.createElement('div');
+  pathLine.className = 'file-path';
+  pathLine.textContent = location;
+  fileTd.appendChild(pathLine);
+  tr.appendChild(fileTd);
+
+  const idTd = document.createElement('td');
+  idTd.textContent = item.decidedTitleId || item.titleId || '(none found)';
+  tr.appendChild(idTd);
+
+  const matchTd = document.createElement('td');
+  renderMatchCell(matchTd, item.match);
+  if (item.variantOptions && item.status === 'accepted') {
+    renderVariantToggle(matchTd, item, region);
+  }
+  tr.appendChild(matchTd);
+
+  const statusTd = document.createElement('td');
+  statusTd.appendChild(statusBadge(item.status));
+  tr.appendChild(statusTd);
+
+  const actionsTd = document.createElement('td');
+  const actionsRow = document.createElement('div');
+  actionsRow.className = 'row-actions';
+
+  const acceptBtn = document.createElement('button');
+  acceptBtn.textContent = 'Accept';
+  acceptBtn.disabled = !item.match || item.status === 'accepted';
+  acceptBtn.addEventListener('click', () => decide(item, 'accepted', item.decidedTitleId || item.titleId, region));
+
+  const rejectBtn = document.createElement('button');
+  rejectBtn.className = 'secondary';
+  rejectBtn.textContent = 'Reject';
+  rejectBtn.disabled = item.status === 'rejected';
+  rejectBtn.addEventListener('click', () => decide(item, 'rejected', item.decidedTitleId || item.titleId, region));
+
+  const changeBtn = document.createElement('button');
+  changeBtn.className = 'secondary';
+  changeBtn.textContent = 'Change match';
+
+  actionsRow.appendChild(acceptBtn);
+  actionsRow.appendChild(rejectBtn);
+  actionsRow.appendChild(changeBtn);
+  actionsTd.appendChild(actionsRow);
+
+  const overrideBox = document.createElement('div');
+  overrideBox.className = 'override-box';
+  const overrideInput = document.createElement('input');
+  overrideInput.type = 'text';
+  overrideInput.placeholder = 'Search by name or nsuId to find the right title...';
+  const overrideResults = document.createElement('div');
+  overrideResults.className = 'override-results';
+  overrideBox.appendChild(overrideInput);
+  overrideBox.appendChild(overrideResults);
+  actionsTd.appendChild(overrideBox);
+
+  changeBtn.addEventListener('click', () => {
+    overrideBox.classList.toggle('open');
+    if (overrideBox.classList.contains('open')) overrideInput.focus();
+  });
+
+  let debounce;
+  overrideInput.addEventListener('input', () => {
+    clearTimeout(debounce);
+    const q = overrideInput.value.trim();
+    if (!q) {
+      overrideResults.innerHTML = '';
+      return;
+    }
+    debounce = setTimeout(async () => {
+      const params = new URLSearchParams({ region, q, field: 'all' });
+      const res = await fetch(`/api/search?${params}`);
+      const data = await res.json();
+      overrideResults.innerHTML = '';
+      if (!res.ok) return;
+      for (const title of data.results.slice(0, 25)) {
+        const row = document.createElement('div');
+        row.textContent = `${title.name || '(no name)'} — ${title.id || ''}`;
+        row.addEventListener('click', () => {
+          item.match = title;
+          item.decidedTitleId = title.id;
+          renderMatchCell(matchTd, title);
+          overrideBox.classList.remove('open');
+          overrideResults.innerHTML = '';
+          overrideInput.value = '';
+          idTd.textContent = title.id;
+          acceptBtn.disabled = false;
+        });
+        overrideResults.appendChild(row);
+      }
+    }, 250);
+  });
+
+  tr.appendChild(actionsTd);
+  return tr;
+}
+
+function renderMatchCell(cell, match) {
+  cell.innerHTML = '';
+  const details = document.createElement('div');
+  details.className = 'match-details';
+
+  if (!match) {
+    const span = document.createElement('span');
+    span.className = 'match-none';
+    span.textContent = 'No match found';
+    details.appendChild(span);
+    cell.appendChild(details);
+    return;
+  }
+  if (match.iconUrl) {
+    const img = document.createElement('img');
+    img.src = match.iconUrl;
+    img.loading = 'lazy';
+    img.alt = '';
+    details.appendChild(img);
+  }
+  const span = document.createElement('span');
+  span.textContent = match.name || '(no name)';
+  details.appendChild(span);
+  cell.appendChild(details);
+}
+
+// titledb sometimes lists a title's original Switch release and its "Switch 2
+// Edition" as two catalog entries sharing the same titleId. When that happens,
+// let the user pick which one this file actually is.
+function renderVariantToggle(cell, item, region) {
+  const label = document.createElement('label');
+  label.className = 'checkbox-item variant-toggle';
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = item.variant === 'switch2';
+  label.appendChild(checkbox);
+  label.append('Use Switch 2 Edition');
+  cell.appendChild(label);
+
+  checkbox.addEventListener('change', async () => {
+    const variant = checkbox.checked ? 'switch2' : 'switch';
+    checkbox.disabled = true;
+    try {
+      await setVariant(item, region, variant);
+      item.variant = variant;
+      item.match = variant === 'switch2' ? item.variantOptions.switch2 : item.variantOptions.switch;
+      renderMatchCell(cell, item.match);
+      renderVariantToggle(cell, item, region);
+    } catch (err) {
+      await showAlert(err.message, 'Error');
+      checkbox.checked = !checkbox.checked;
+      checkbox.disabled = false;
+    }
+  });
+}
+
+async function setVariant(item, region, variant) {
+  const res = await fetch('/api/library/decision', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      path: item.path,
+      status: item.status === 'pending' ? 'accepted' : item.status,
+      titleId: item.decidedTitleId || item.titleId,
+      region,
+      variant,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to save variant');
+  if (item.status === 'pending') item.status = 'accepted';
+}
+
+function statusBadge(status) {
+  const span = document.createElement('span');
+  span.className = `badge badge-${status}`;
+  span.textContent = status;
+  return span;
+}
+
+async function decide(item, status, titleId, region) {
+  const res = await fetch('/api/library/decision', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: item.path, status, titleId, region }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    await showAlert(data.error || 'Failed to save decision', 'Error');
+    return;
+  }
+  item.status = status;
+  item.decidedTitleId = titleId;
+  render(region);
+  const accepted = currentResults.filter((r) => r.status === 'accepted').length;
+  const rejected = currentResults.filter((r) => r.status === 'rejected').length;
+  const pending = currentResults.filter((r) => r.status === 'pending').length;
+  summary.textContent = `${currentResults.length} file(s) — ${pending} pending, ${accepted} accepted, ${rejected} rejected`;
+}
+
+// --- Organize accepted files: rename/move into "<Base Title> [<TitleId>]/" folders ---
+
+const organizeBtn = document.getElementById('organize-btn');
+const organizeStatus = document.getElementById('organize-status');
+const organizePanel = document.getElementById('organize-panel');
+const organizeSummary = document.getElementById('organize-summary');
+const organizeBody = document.getElementById('organize-body');
+const organizeSkipped = document.getElementById('organize-skipped');
+const organizeApplyBtn = document.getElementById('organize-apply-btn');
+
+let organizeOpen = false;
+
+organizeBtn.addEventListener('click', async () => {
+  organizeOpen = !organizeOpen;
+  organizePanel.hidden = !organizeOpen;
+  organizeBtn.textContent = organizeOpen ? 'Organize accepted files ▴' : 'Organize accepted files ▾';
+  if (organizeOpen) {
+    await loadOrganizePlan();
+  }
+});
+
+async function loadOrganizePlan() {
+  const region = regionSelect.value;
+  if (!region) return;
+  organizeStatus.textContent = 'Building plan...';
+  organizeBody.innerHTML = '';
+  organizeSkipped.innerHTML = '';
+  organizeApplyBtn.disabled = true;
+
+  try {
+    const res = await fetch(`/api/library/organize/plan?${new URLSearchParams({ region })}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to build plan');
+
+    organizeStatus.textContent = '';
+    organizeSummary.textContent = data.count === 0
+      ? 'Nothing to organize — every accepted file is already in place, or none are accepted yet.'
+      : `${data.count} file(s) will be moved. Review the plan, uncheck anything you don't want, then apply.`;
+
+    organizeBody.innerHTML = '';
+    for (const item of data.plan) {
+      organizeBody.appendChild(renderOrganizeRow(item, region));
+    }
+
+    if (data.skippedCount > 0) {
+      const header = document.createElement('div');
+      header.className = 'status';
+      header.textContent = `${data.skippedCount} file(s) skipped:`;
+      organizeSkipped.appendChild(header);
+      for (const s of data.skipped) {
+        const line = document.createElement('div');
+        line.className = 'status';
+        line.textContent = `${s.path} — ${s.reason}`;
+        organizeSkipped.appendChild(line);
+      }
+    }
+
+    organizeApplyBtn.disabled = data.count === 0;
+  } catch (err) {
+    organizeStatus.textContent = `Error: ${err.message}`;
+  }
+}
+
+function renderOrganizeRow(item, region) {
+  const tr = document.createElement('tr');
+  tr.dataset.path = item.path;
+
+  const checkTd = document.createElement('td');
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = true;
+  checkTd.appendChild(checkbox);
+  tr.appendChild(checkTd);
+
+  const fromTd = document.createElement('td');
+  fromTd.textContent = item.from;
+  tr.appendChild(fromTd);
+
+  const toTd = document.createElement('td');
+  toTd.innerHTML = `<code>${item.to}</code>`;
+  if (item.variantOptions) {
+    const label = document.createElement('label');
+    label.className = 'checkbox-item variant-toggle';
+    const variantCheckbox = document.createElement('input');
+    variantCheckbox.type = 'checkbox';
+    variantCheckbox.checked = item.selectedVariant === 'switch2';
+    label.appendChild(variantCheckbox);
+    label.append('Use Switch 2 Edition');
+    toTd.appendChild(document.createElement('br'));
+    toTd.appendChild(label);
+
+    variantCheckbox.addEventListener('change', async () => {
+      variantCheckbox.disabled = true;
+      try {
+        const res = await fetch('/api/library/decision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: item.path,
+            status: 'accepted',
+            titleId: item.titleId,
+            region,
+            variant: variantCheckbox.checked ? 'switch2' : 'switch',
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save variant');
+        await loadOrganizePlan();
+      } catch (err) {
+        await showAlert(err.message, 'Error');
+        variantCheckbox.checked = !variantCheckbox.checked;
+        variantCheckbox.disabled = false;
+      }
+    });
+  }
+  tr.appendChild(toTd);
+
+  const typeTd = document.createElement('td');
+  const badge = document.createElement('span');
+  badge.className = `badge badge-type-${item.contentType || 'base'}`;
+  badge.textContent = item.contentType || 'base';
+  typeTd.appendChild(badge);
+  tr.appendChild(typeTd);
+
+  return tr;
+}
+
+organizeApplyBtn.addEventListener('click', async () => {
+  const region = regionSelect.value;
+  const checked = [...organizeBody.querySelectorAll('input[type="checkbox"]:checked')]
+    .map((cb) => cb.closest('tr').dataset.path);
+  if (checked.length === 0) {
+    await showAlert('Nothing selected.', 'Nothing to move');
+    return;
+  }
+  const confirmed = await showConfirm(
+    `Move and rename ${checked.length} file(s) on disk? This cannot be undone automatically.`,
+    'Move files?'
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  organizeApplyBtn.disabled = true;
+  organizeStatus.textContent = 'Moving files...';
+  try {
+    const res = await fetch('/api/library/organize/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ region, paths: checked }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to organize');
+
+    organizeStatus.textContent = `Moved ${data.movedCount} file(s)${data.errorCount ? `, ${data.errorCount} error(s)` : ''}.`;
+    if (data.errorCount) {
+      const errBox = document.createElement('div');
+      errBox.className = 'status';
+      errBox.textContent = data.errors.map((e) => `${e.path}: ${e.error}`).join(' | ');
+      organizeSkipped.appendChild(errBox);
+    }
+    await loadOrganizePlan();
+    await runScan();
+  } catch (err) {
+    organizeStatus.textContent = `Error: ${err.message}`;
+  } finally {
+    organizeApplyBtn.disabled = false;
+  }
+});
+
+loadRegions();
