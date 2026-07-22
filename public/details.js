@@ -87,7 +87,7 @@ function render(title, hasExpansions, demos) {
   ].join('');
 
   const screenshots = Array.isArray(title.screenshots) && title.screenshots.length
-    ? `<div class="screenshot-row">${title.screenshots.map((s) => `<img src="${esc(s)}" loading="lazy" alt="" />`).join('')}</div>`
+    ? `<div class="screenshot-row">${title.screenshots.map((s, i) => `<img src="${esc(s)}" loading="lazy" alt="Screenshot ${i + 1} of ${esc(title.name || 'this title')}" />`).join('')}</div>`
     : '';
 
   const demosSection = title.contentType === 'demo' ? '' : `

@@ -9,55 +9,78 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css" />
+  <script>
+    (function () {
+      try {
+        var p = JSON.parse(localStorage.getItem('switchshelf.a11y') || '{}');
+        var c = document.documentElement.classList;
+        if (p.highContrast) c.add('a11y-high-contrast');
+        if (p.largeText) c.add('a11y-large-text');
+        if (p.reducedMotion) c.add('a11y-reduced-motion');
+        if (p.underlineLinks) c.add('a11y-underline-links');
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <header class="app-header">
     <img src="icons/icon-192.png" alt="" class="app-logo" width="48" height="48" />
     <div>
       <h1>Library Scan</h1>
       <p class="subtitle">Match your local title files against titledb. Nothing is accepted automatically &mdash; review each match below.</p>
-      <nav><a href="index.html">Search</a> · <a href="scan.html">Library Scan</a></nav>
+      <nav aria-label="Site"><a href="index.html">Search</a> · <a href="scan.html" aria-current="page">Library Scan</a></nav>
     </div>
+    <details class="a11y-menu">
+      <summary class="a11y-menu-btn" aria-label="Accessibility options"><span aria-hidden="true">&#9855;</span> Accessibility</summary>
+      <fieldset class="a11y-menu-panel">
+        <legend>Display preferences</legend>
+        <label class="checkbox-item"><input type="checkbox" id="a11y-high-contrast-toggle" /> High contrast</label>
+        <label class="checkbox-item"><input type="checkbox" id="a11y-large-text-toggle" /> Larger text</label>
+        <label class="checkbox-item"><input type="checkbox" id="a11y-reduced-motion-toggle" /> Reduce motion</label>
+        <label class="checkbox-item"><input type="checkbox" id="a11y-underline-links-toggle" /> Underline links</label>
+      </fieldset>
+    </details>
   </header>
 
-  <main>
+  <main id="main-content" tabindex="-1">
     <section class="controls">
       <label for="region-select">Match against</label>
       <select id="region-select"></select>
       <button id="scan-btn">Scan library</button>
       <button id="default-region-btn" class="secondary" title="Remember this region and pre-select it on future visits">☆ Set as default</button>
-      <span id="scan-status" class="status"></span>
+      <span id="scan-status" class="status" role="status" aria-live="polite"></span>
     </section>
 
-    <section id="summary" class="status"></section>
+    <section id="summary" class="status" role="status" aria-live="polite"></section>
 
     <table id="results">
       <thead>
         <tr>
-          <th>File</th>
-          <th>Extracted ID</th>
-          <th>Proposed match</th>
-          <th>Status</th>
-          <th>Actions</th>
+          <th scope="col">File</th>
+          <th scope="col">Extracted ID</th>
+          <th scope="col">Proposed match</th>
+          <th scope="col">Status</th>
+          <th scope="col">Actions</th>
         </tr>
       </thead>
       <tbody id="results-body"></tbody>
     </table>
 
     <section class="controls">
-      <button id="organize-btn" class="secondary">Organize accepted files &#9662;</button>
-      <span id="organize-status" class="status"></span>
+      <button id="organize-btn" class="secondary" aria-expanded="false" aria-controls="organize-panel">Organize accepted files &#9662;</button>
+      <span id="organize-status" class="status" role="status" aria-live="polite"></span>
     </section>
 
     <div id="organize-panel" class="organize-panel" hidden>
-      <div id="organize-summary" class="status"></div>
+      <div id="organize-summary" class="status" role="status" aria-live="polite"></div>
       <table id="organize-table">
         <thead>
           <tr>
-            <th></th>
-            <th>Current file</th>
-            <th>New location</th>
-            <th>Type</th>
+            <th scope="col"><span class="sr-only">Include</span></th>
+            <th scope="col">Current file</th>
+            <th scope="col">New location</th>
+            <th scope="col">Type</th>
           </tr>
         </thead>
         <tbody id="organize-body"></tbody>
@@ -68,7 +91,7 @@
   </main>
 
   <div id="modal-backdrop" class="modal-backdrop" hidden>
-    <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-message">
       <div id="modal-title" class="modal-title"></div>
       <div id="modal-message" class="modal-message"></div>
       <div class="modal-actions">
@@ -79,6 +102,7 @@
   </div>
 
   <script src="region-pref.js"></script>
+  <script src="a11y.js"></script>
   <script src="scan.js"></script>
 </body>
 </html>

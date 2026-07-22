@@ -9,22 +9,46 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css" />
+  <script>
+    (function () {
+      try {
+        var p = JSON.parse(localStorage.getItem('switchshelf.a11y') || '{}');
+        var c = document.documentElement.classList;
+        if (p.highContrast) c.add('a11y-high-contrast');
+        if (p.largeText) c.add('a11y-large-text');
+        if (p.reducedMotion) c.add('a11y-reduced-motion');
+        if (p.underlineLinks) c.add('a11y-underline-links');
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <header class="app-header">
     <img src="icons/icon-192.png" alt="" class="app-logo" width="48" height="48" />
     <div>
       <h1 id="page-title">Title Details</h1>
       <p class="subtitle"><a id="back-link" href="index.html">&larr; Back to search</a></p>
-      <nav><a href="index.html">Search</a> · <a href="scan.html">Library Scan</a></nav>
+      <nav aria-label="Site"><a href="index.html">Search</a> · <a href="scan.html">Library Scan</a></nav>
     </div>
+    <details class="a11y-menu">
+      <summary class="a11y-menu-btn" aria-label="Accessibility options"><span aria-hidden="true">&#9855;</span> Accessibility</summary>
+      <fieldset class="a11y-menu-panel">
+        <legend>Display preferences</legend>
+        <label class="checkbox-item"><input type="checkbox" id="a11y-high-contrast-toggle" /> High contrast</label>
+        <label class="checkbox-item"><input type="checkbox" id="a11y-large-text-toggle" /> Larger text</label>
+        <label class="checkbox-item"><input type="checkbox" id="a11y-reduced-motion-toggle" /> Reduce motion</label>
+        <label class="checkbox-item"><input type="checkbox" id="a11y-underline-links-toggle" /> Underline links</label>
+      </fieldset>
+    </details>
   </header>
 
-  <main>
-    <div id="status" class="status"></div>
+  <main id="main-content" tabindex="-1">
+    <div id="status" class="status" role="status" aria-live="polite"></div>
     <div id="detail-root"></div>
   </main>
 
+  <script src="a11y.js"></script>
   <script src="details.js"></script>
 </body>
 </html>

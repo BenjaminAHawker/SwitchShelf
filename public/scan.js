@@ -18,6 +18,7 @@ const modalConfirmBtn = document.getElementById('modal-confirm-btn');
 
 function showModal({ title, message, confirmText = 'OK', cancelText = 'Cancel', showCancel = false }) {
   return new Promise((resolve) => {
+    const previouslyFocused = document.activeElement;
     modalTitle.textContent = title;
     modalMessage.textContent = message;
     modalConfirmBtn.textContent = confirmText;
@@ -25,12 +26,15 @@ function showModal({ title, message, confirmText = 'OK', cancelText = 'Cancel', 
     modalCancelBtn.hidden = !showCancel;
     modalBackdrop.hidden = false;
 
+    const focusable = [modalCancelBtn, modalConfirmBtn].filter((el) => !el.hidden);
+
     const cleanup = (result) => {
       modalBackdrop.hidden = true;
       modalConfirmBtn.removeEventListener('click', onConfirm);
       modalCancelBtn.removeEventListener('click', onCancel);
       modalBackdrop.removeEventListener('click', onBackdrop);
       document.removeEventListener('keydown', onKeydown);
+      previouslyFocused?.focus?.();
       resolve(result);
     };
     const onConfirm = () => cleanup(true);
@@ -39,8 +43,26 @@ function showModal({ title, message, confirmText = 'OK', cancelText = 'Cancel', 
       if (e.target === modalBackdrop) cleanup(false);
     };
     const onKeydown = (e) => {
-      if (e.key === 'Escape') cleanup(false);
-      if (e.key === 'Enter' && showCancel === false) cleanup(true);
+      if (e.key === 'Escape') {
+        cleanup(false);
+        return;
+      }
+      if (e.key === 'Enter' && showCancel === false) {
+        cleanup(true);
+        return;
+      }
+      // Trap focus inside the modal while it's open.
+      if (e.key === 'Tab' && focusable.length > 0) {
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
 
     modalConfirmBtn.addEventListener('click', onConfirm);
@@ -356,6 +378,7 @@ organizeBtn.addEventListener('click', async () => {
   organizeOpen = !organizeOpen;
   organizePanel.hidden = !organizeOpen;
   organizeBtn.textContent = organizeOpen ? 'Organize accepted files ▴' : 'Organize accepted files ▾';
+  organizeBtn.setAttribute('aria-expanded', String(organizeOpen));
   if (organizeOpen) {
     await loadOrganizePlan();
   }
