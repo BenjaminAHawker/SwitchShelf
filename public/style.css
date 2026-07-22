@@ -467,9 +467,6 @@ td.expand-cell {
 
 .badge-owned { background: #166534; color: #ffffff; }
 
-.badge-switch { background: #374151; color: #ffffff; }
-.badge-switch2 { background: #b91c1c; color: #ffffff; }
-
 .name-link {
   color: var(--fg);
   text-decoration: none;

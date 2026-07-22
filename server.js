@@ -80,7 +80,7 @@ app.get('/api/languages', (req, res) => {
 });
 
 app.get('/api/search', (req, res) => {
-  const { region, q, field, platform, contentType, owned, languages, sort } = req.query;
+  const { region, q, field, contentType, owned, languages, sort } = req.query;
   if (!region) {
     return res.status(400).json({ error: 'region query param is required' });
   }
@@ -89,7 +89,6 @@ app.get('/api/search', (req, res) => {
   }
   const { total, results } = store.search(region, q, {
     field: field || 'all',
-    platform: platform || 'all',
     contentType: contentType || 'game',
     owned: owned || 'all',
     languages: languages ? languages.split(',').filter(Boolean) : [],
@@ -113,7 +112,11 @@ app.get('/api/title', (req, res) => {
   }
 
   const title = store.findByTitleId(region, titleId);
-  if (!title) {
+  // findByTitleId prefers a Switch sibling when one exists, but a titleId with
+  // no Switch release at all (a native Switch 2 exclusive) can still resolve
+  // straight to a Switch 2 entry — there's no way to dump/back up a Switch 2
+  // game, so treat that the same as not found.
+  if (!title || store.isSwitch2(title)) {
     return res.status(404).json({ error: `No title with id ${titleId} found in ${region}` });
   }
 
@@ -121,7 +124,6 @@ app.get('/api/title', (req, res) => {
     region,
     title: {
       ...title,
-      isSwitch2: store.isSwitch2(title),
       contentType: store.getContentType(title),
       owned: store.isOwned(region, title),
     },

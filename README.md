@@ -9,7 +9,7 @@ A self-hosted web app for browsing [blawar/titledb](https://github.com/blawar/ti
 ## What it does
 
 - Syncs region catalog files (and the DLC/update metadata file) from `blawar/titledb` on demand, only downloading what you select.
-- Search/browse titles by name or nsuId, with filters for platform (Switch / Switch 2), content type (games vs. DLC/updates/demos), language, and ownership.
+- Search/browse titles by name or nsuId, with filters for content type (games vs. DLC/updates/demos), language, and ownership. Switch 2 titles are excluded entirely — there's currently no way to dump/back up a Switch 2 game, so they're not relevant to what this app does.
 - Per-title details page: full metadata, screenshots, matched demos, and related DLC/updates.
 - **Library Scan**: point the app at a local folder of `.nsp`/`.nsz`/`.xci`/`.xcz` files, match each one against titledb by the title ID in its filename, and manually accept/reject/override each match.
 - **Organize**: for accepted matches, preview and optionally apply a rename/move into `<Title> [<TitleId>]/` folders with cleaned-up filenames.
@@ -17,7 +17,7 @@ A self-hosted web app for browsing [blawar/titledb](https://github.com/blawar/ti
 
 ## Screenshots
 
-The main search page — region/DLC sync controls, name/nsuId search, platform/content-type/ownership/language filters, and results:
+The main search page — region/DLC sync controls, name/nsuId search, content-type/ownership/language filters, and results:
 
 ![Main search page](screenshots/main-region-default.png)
 
