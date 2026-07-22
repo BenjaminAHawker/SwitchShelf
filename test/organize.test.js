@@ -30,11 +30,13 @@ const dlcFile = 'Organize Base Game DLC [0100000000011001][v0].nsp';
 const rejectedFile = 'Rejected File [0100000000010000][v0].nsp';
 const missingFile = 'Missing Source [0100000000010000][v0].nsp';
 const untaggedUpdateFile = 'Organize Base Game Update.nsp';
+const taggedUpdateFile = 'Organize Base Game [0100000000010000][v131072].nsp';
 
 fs.writeFileSync(path.join(titlesDir, baseFile), '');
 fs.writeFileSync(path.join(titlesDir, dlcFile), '');
 fs.writeFileSync(path.join(titlesDir, rejectedFile), '');
 fs.writeFileSync(path.join(titlesDir, untaggedUpdateFile), '');
+fs.writeFileSync(path.join(titlesDir, taggedUpdateFile), '');
 // missingFile deliberately never created on disk.
 
 decisions.setDecision(baseFile, { status: 'accepted', titleId: BASE_ID, region: REGION });
@@ -42,6 +44,7 @@ decisions.setDecision(dlcFile, { status: 'accepted', titleId: DLC_ID, region: RE
 decisions.setDecision(rejectedFile, { status: 'rejected', titleId: BASE_ID, region: REGION });
 decisions.setDecision(missingFile, { status: 'accepted', titleId: BASE_ID, region: REGION });
 decisions.setDecision(untaggedUpdateFile, { status: 'accepted', titleId: BASE_ID, region: REGION, version: '65536' });
+decisions.setDecision(taggedUpdateFile, { status: 'accepted', titleId: BASE_ID, region: REGION });
 
 test('sanitize strips filesystem-illegal characters, trademarks, and trailing junk', () => {
   assert.equal(organize.sanitize('Game™: Name / Sub\\Thing?* ', 'fallback'), 'Game Name SubThing');
@@ -72,6 +75,28 @@ test('buildPlan uses a decision\'s manual version override for files with no "[v
   const updatePlan = plan.find((p) => p.path === untaggedUpdateFile);
   assert.ok(updatePlan);
   assert.equal(updatePlan.to, path.join('Organize Base Game[0100000000010000]', 'Organize Base Game [0100000000010000][65536].nsp'));
+});
+
+// Regression test: update NSPs share their base game's titleId on real
+// hardware (only the version differs), so a match resolved by titleId alone
+// always comes back as the base game's own catalog entry — cnmts.getContentType
+// has no way to tell "the base install" and "an update of it" apart by id.
+// buildPlan needs to infer that from the version instead, whether it comes
+// from a "[vNNN]" tag in the filename or a manual override.
+test('buildPlan reports contentType "update", not "base", for a non-zero version of a base game', () => {
+  const { plan } = organize.buildPlan(REGION);
+
+  const taggedPlan = plan.find((p) => p.path === taggedUpdateFile);
+  assert.ok(taggedPlan);
+  assert.equal(taggedPlan.contentType, 'update');
+
+  const overriddenPlan = plan.find((p) => p.path === untaggedUpdateFile);
+  assert.ok(overriddenPlan);
+  assert.equal(overriddenPlan.contentType, 'update');
+
+  // The actual base install (v0) is unaffected — still reported as "base".
+  const basePlan = plan.find((p) => p.path === baseFile);
+  assert.equal(basePlan.contentType, 'base');
 });
 
 test('buildPlan skips an item whose destination already exists', () => {
