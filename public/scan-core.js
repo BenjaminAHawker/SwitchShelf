@@ -11,6 +11,7 @@ function initScanPage(config) {
   const {
     apiBase, // '/api/library' or '/api/staging'
     organizeIdleLabel, // e.g. 'Organize accepted files' or 'Move accepted files to Library'
+    allowDelete = false, // Staging only — permanently removes a file from disk.
   } = config;
 
   const regionSelect = document.getElementById('region-select');
@@ -254,6 +255,15 @@ function initScanPage(config) {
     actionsRow.appendChild(acceptBtn);
     actionsRow.appendChild(rejectBtn);
     actionsRow.appendChild(changeBtn);
+
+    if (allowDelete) {
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'danger';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.addEventListener('click', () => deleteItem(item, region));
+      actionsRow.appendChild(deleteBtn);
+    }
+
     actionsTd.appendChild(actionsRow);
 
     const overrideBox = document.createElement('div');
@@ -435,6 +445,33 @@ function initScanPage(config) {
     const rejected = currentResults.filter((r) => r.status === 'rejected').length;
     const pending = currentResults.filter((r) => r.status === 'pending').length;
     summary.textContent = `${currentResults.length} file(s) — ${pending} pending, ${accepted} accepted, ${rejected} rejected`;
+  }
+
+  async function deleteItem(item, region) {
+    const confirmed = await showConfirm(
+      `Permanently delete "${item.fileName}" from disk? This cannot be undone.`,
+      'Delete file?'
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`${apiBase}/file`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: item.path }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete file');
+
+      currentResults = currentResults.filter((r) => r.path !== item.path);
+      render(region);
+      const accepted = currentResults.filter((r) => r.status === 'accepted').length;
+      const rejected = currentResults.filter((r) => r.status === 'rejected').length;
+      const pending = currentResults.filter((r) => r.status === 'pending').length;
+      summary.textContent = `${currentResults.length} file(s) — ${pending} pending, ${accepted} accepted, ${rejected} rejected`;
+    } catch (err) {
+      await showAlert(err.message, 'Error');
+    }
   }
 
   // --- Organize: rename/move accepted files ---

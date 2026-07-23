@@ -289,6 +289,26 @@ app.delete('/api/staging/decision', (req, res) => {
   res.json({ path: filePath, cleared: true });
 });
 
+// Staging-only: permanently deletes a file from disk. Never exposed for the
+// main Library — deleting an owned/organized title isn't something this app
+// should do on your behalf.
+app.delete('/api/staging/file', (req, res) => {
+  const { path: filePath } = req.body || {};
+  if (!filePath) {
+    return res.status(400).json({ error: 'path is required' });
+  }
+  if (!scanner.isStagingConfigured()) {
+    return res.status(409).json({ error: 'No staging folder mounted. Set STAGING_DIR / the staging volume in docker-compose.yml.' });
+  }
+  try {
+    scanner.deleteStagingFile(filePath);
+  } catch (err) {
+    return res.status(err.message === 'File not found' ? 404 : 400).json({ error: err.message });
+  }
+  decisions.clearDecision(filePath, 'staging');
+  res.json({ path: filePath, deleted: true });
+});
+
 app.get('/api/staging/organize/plan', (req, res) => {
   const { region } = req.query;
   if (!region) {
