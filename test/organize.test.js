@@ -56,7 +56,7 @@ test('buildPlan computes base and DLC destinations, and reports the missing sour
   const { plan, skipped } = organize.buildPlan(REGION);
 
   const basePlan = plan.find((p) => p.path === baseFile);
-  assert.equal(basePlan.to, path.join('Organize Base Game[0100000000010000]', 'Organize Base Game [0100000000010000][0].nsp'));
+  assert.equal(basePlan.to, path.join('Organize Base Game[0100000000010000]', 'Organize Base Game [0100000000010000][v0].nsp'));
   assert.equal(basePlan.contentType, 'base');
 
   const dlcPlan = plan.find((p) => p.path === dlcFile);
@@ -74,7 +74,7 @@ test('buildPlan uses a decision\'s manual version override for files with no "[v
   const { plan } = organize.buildPlan(REGION);
   const updatePlan = plan.find((p) => p.path === untaggedUpdateFile);
   assert.ok(updatePlan);
-  assert.equal(updatePlan.to, path.join('Organize Base Game[0100000000010000]', 'Organize Base Game [0100000000010000][65536].nsp'));
+  assert.equal(updatePlan.to, path.join('Organize Base Game[0100000000010000]', 'Organize Base Game [0100000000010000][v65536].nsp'));
 });
 
 // Regression test: update NSPs share their base game's titleId on real
@@ -102,7 +102,7 @@ test('buildPlan reports contentType "update", not "base", for a non-zero version
 test('buildPlan skips an item whose destination already exists', () => {
   const destDir = path.join(titlesDir, 'Organize Base Game[0100000000010000]');
   fs.mkdirSync(destDir, { recursive: true });
-  fs.writeFileSync(path.join(destDir, 'Organize Base Game [0100000000010000][0].nsp'), 'already here');
+  fs.writeFileSync(path.join(destDir, 'Organize Base Game [0100000000010000][v0].nsp'), 'already here');
 
   const { plan, skipped } = organize.buildPlan(REGION);
   assert.equal(plan.some((p) => p.path === baseFile), false);

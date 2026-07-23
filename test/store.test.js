@@ -87,6 +87,24 @@ test('getContentType prefers cnmts.json once it is available, even over the icon
   assert.equal(store.getContentType(sneaky), 'dlc'); // cnmts overrides the "has an icon" heuristic
 });
 
+// Regression test: a scanned update file always resolves (by titleId) to its
+// base game's own catalog entry — cnmts has no separate entry for "this is
+// specifically an update" when matched this way — so Library Scan's "Proposed
+// match" badge needs to infer "update" from the version, the same way
+// organize.js's Type column already does.
+test('displayContentType infers "update" from a non-zero version, but leaves dlc/demo/update alone', () => {
+  const base = store.findByTitleId(REGION, '0100000000010000');
+  const dlc = store.findByTitleId(REGION, '0100000000011001');
+  const demo = store.findByTitleId(REGION, '0100000000012000');
+
+  assert.equal(store.displayContentType(base, '0'), 'base');
+  assert.equal(store.displayContentType(base, null), 'base');
+  assert.equal(store.displayContentType(base, '131072'), 'update');
+  assert.equal(store.displayContentType(dlc, '131072'), 'dlc'); // dlc is definitive, version is irrelevant
+  assert.equal(store.displayContentType(demo, '131072'), 'demo');
+  assert.equal(store.displayContentType(null, '131072'), null);
+});
+
 test('search: browsing (empty query) defaults to games only, sorted by name, and excludes Switch 2 titles', () => {
   const { total, results } = store.search(REGION, '');
   const names = results.map((r) => r.name).sort();
