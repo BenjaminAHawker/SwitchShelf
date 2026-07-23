@@ -244,3 +244,22 @@ test('getDemosFor returns nothing for a title with no matching demo', () => {
   const base = store.findByTitleId(REGION, '0400000000000002');
   assert.deepEqual(store.getDemosFor(REGION, base), []);
 });
+
+// Regression test: titledb sometimes lists a bundle/collector's edition as a
+// separate catalog entry sharing its plain edition's titleId (distinct nsuId,
+// both with their own icon) — neither is a Switch 2 Edition, so the existing
+// Switch2 dedup doesn't catch this. Only the lowest-nsuId (first-listed, i.e.
+// plain) entry should ever show up.
+test('search: a base game listed twice under the same titleId (e.g. a bundle edition) only appears once', () => {
+  const DUPE_REGION = 'DUPE.en.json';
+  writeJSON(dataDir, DUPE_REGION, {
+    100: { id: '0100000000030000', name: 'Great Game', nsuId: 100, iconUrl: 'icon100', languages: ['en'], releaseDate: 20210101 },
+    101: { id: '0100000000030000', name: 'Great Game Legendary Edition', nsuId: 101, iconUrl: 'icon101', languages: ['en'], releaseDate: 20210601 },
+    102: { id: '0100000000031000', name: 'Another Game', nsuId: 102, iconUrl: 'icon102', languages: ['en'], releaseDate: 20220101 },
+  });
+
+  const { total, results } = store.search(DUPE_REGION, '');
+  assert.equal(total, 2);
+  const great = results.find((r) => r.id === '0100000000030000');
+  assert.equal(great.name, 'Great Game'); // the lower-nsuId (plain) entry wins, not the bundle
+});
