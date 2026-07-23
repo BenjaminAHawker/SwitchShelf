@@ -8,6 +8,9 @@
   <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="vendor/fontawesome/css/fontawesome.min.css" />
+  <link rel="stylesheet" href="vendor/fontawesome/css/solid.min.css" />
+  <link rel="stylesheet" href="vendor/fontawesome/css/regular.min.css" />
   <link rel="stylesheet" href="style.css" />
   <script>
     (function () {
@@ -34,7 +37,7 @@
       <nav aria-label="Site"><a href="index.html">Search</a> · <a href="library.html">My Games</a> · <a href="scan.html" aria-current="page">Library Scan</a> · <a href="staging.html">Staging</a></nav>
     </div>
     <details class="a11y-menu">
-      <summary class="a11y-menu-btn" aria-label="Accessibility options"><span aria-hidden="true">&#9855;</span> Accessibility</summary>
+      <summary class="a11y-menu-btn" aria-label="Accessibility options"><i class="fa-solid fa-universal-access" aria-hidden="true"></i> Accessibility</summary>
       <fieldset class="a11y-menu-panel">
         <legend>Display preferences</legend>
         <label class="checkbox-item"><input type="checkbox" id="a11y-high-contrast-toggle" /> High contrast</label>
@@ -50,7 +53,7 @@
       <label for="region-select">Match against</label>
       <select id="region-select"></select>
       <button id="scan-btn">Scan library</button>
-      <button id="default-region-btn" class="secondary" title="Remember this region and pre-select it on future visits">☆ Set as default</button>
+      <button id="default-region-btn" class="secondary" title="Remember this region and pre-select it on future visits"><i class="fa-regular fa-star" aria-hidden="true"></i> Set as default</button>
       <span id="scan-status" class="status" role="status" aria-live="polite"></span>
     </section>
 
@@ -90,7 +93,7 @@
     </div>
 
     <section class="controls">
-      <button id="organize-btn" class="secondary" aria-expanded="false" aria-controls="organize-panel">Organize accepted files &#9662;</button>
+      <button id="organize-btn" class="secondary" aria-expanded="false" aria-controls="organize-panel">Organize accepted files <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
       <span id="organize-status" class="status" role="status" aria-live="polite"></span>
     </section>
 

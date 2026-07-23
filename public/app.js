@@ -86,7 +86,10 @@ async function loadRegions(selectName) {
 function updateDefaultRegionButton() {
   if (!defaultRegionBtn) return;
   const isDefault = RegionPref.get() === regionSelect.value;
-  defaultRegionBtn.textContent = isDefault ? '★ Default region' : '☆ Set as default';
+  // Static markup, never interpolated with any untrusted value.
+  defaultRegionBtn.innerHTML = isDefault
+    ? '<i class="fa-solid fa-star" aria-hidden="true"></i> Default region'
+    : '<i class="fa-regular fa-star" aria-hidden="true"></i> Set as default';
   defaultRegionBtn.disabled = isDefault;
 }
 
@@ -334,9 +337,12 @@ function renderResultRow(title, region) {
 
   const expandTd = document.createElement('td');
   if (title.id && title.hasExpansions !== false) {
+    // Static markup, never interpolated with any untrusted value.
+    const expandLabel = (open) =>
+      `DLC/Updates <i class="fa-solid fa-chevron-${open ? 'up' : 'down'}" aria-hidden="true"></i>`;
     const expandBtn = document.createElement('button');
     expandBtn.className = 'secondary';
-    expandBtn.textContent = 'DLC/Updates ▾';
+    expandBtn.innerHTML = expandLabel(false);
     expandBtn.disabled = !cnmtsState.downloaded;
     expandBtn.title = cnmtsState.downloaded ? '' : 'Sync the DLC/Update index first';
     let expanded = false;
@@ -345,19 +351,19 @@ function renderResultRow(title, region) {
       if (expanded) {
         childRow?.remove();
         expanded = false;
-        expandBtn.textContent = 'DLC/Updates ▾';
+        expandBtn.innerHTML = expandLabel(false);
         return;
       }
       expandBtn.disabled = true;
-      const originalText = expandBtn.textContent;
+      const originalHtml = expandBtn.innerHTML;
       expandBtn.textContent = 'Loading...';
       try {
         childRow = await buildExpandRow(title, region);
         tr.after(childRow);
         expanded = true;
-        expandBtn.textContent = 'DLC/Updates ▴';
+        expandBtn.innerHTML = expandLabel(true);
       } catch (err) {
-        expandBtn.textContent = originalText;
+        expandBtn.innerHTML = originalHtml;
         alert(err.message);
       } finally {
         expandBtn.disabled = false;

@@ -2,6 +2,11 @@
 // demos are distinguishable from base games (which get no tag).
 const CONTENT_TYPE_TAG = { dlc: 'DLC', update: 'Update', demo: 'Demo' };
 
+// Static markup, never interpolated with any untrusted value. Font Awesome
+// (vendored under public/vendor/fontawesome, loaded via <link> in scan.html
+// / staging.html) renders the glyph from this class name alone.
+const TRASH_ICON_HTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i>';
+
 // Shared logic behind both Library Scan (scan.js) and Staging (staging.js):
 // scan a folder, match files against titledb, accept/reject/override each
 // one, then preview and apply a rename/move plan. The two pages differ only
@@ -11,6 +16,7 @@ function initScanPage(config) {
   const {
     apiBase, // '/api/library' or '/api/staging'
     organizeIdleLabel, // e.g. 'Organize accepted files' or 'Move accepted files to Library'
+    allowDelete = false, // Staging only — permanently removes a file from disk.
   } = config;
 
   const regionSelect = document.getElementById('region-select');
@@ -120,7 +126,10 @@ function initScanPage(config) {
   function updateDefaultRegionButton() {
     if (!defaultRegionBtn) return;
     const isDefault = RegionPref.get() === regionSelect.value;
-    defaultRegionBtn.textContent = isDefault ? '★ Default region' : '☆ Set as default';
+    // Static markup, never interpolated with any untrusted value.
+    defaultRegionBtn.innerHTML = isDefault
+      ? '<i class="fa-solid fa-star" aria-hidden="true"></i> Default region'
+      : '<i class="fa-regular fa-star" aria-hidden="true"></i> Set as default';
     defaultRegionBtn.disabled = isDefault;
   }
 
@@ -254,6 +263,17 @@ function initScanPage(config) {
     actionsRow.appendChild(acceptBtn);
     actionsRow.appendChild(rejectBtn);
     actionsRow.appendChild(changeBtn);
+
+    if (allowDelete) {
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'danger icon-btn';
+      deleteBtn.innerHTML = TRASH_ICON_HTML;
+      deleteBtn.setAttribute('aria-label', `Delete ${item.fileName}`);
+      deleteBtn.title = 'Delete';
+      deleteBtn.addEventListener('click', () => deleteItem(item, region));
+      actionsRow.appendChild(deleteBtn);
+    }
+
     actionsTd.appendChild(actionsRow);
 
     const overrideBox = document.createElement('div');
@@ -437,6 +457,33 @@ function initScanPage(config) {
     summary.textContent = `${currentResults.length} file(s) — ${pending} pending, ${accepted} accepted, ${rejected} rejected`;
   }
 
+  async function deleteItem(item, region) {
+    const confirmed = await showConfirm(
+      `Permanently delete "${item.fileName}" from disk? This cannot be undone.`,
+      'Delete file?'
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`${apiBase}/file`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: item.path }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete file');
+
+      currentResults = currentResults.filter((r) => r.path !== item.path);
+      render(region);
+      const accepted = currentResults.filter((r) => r.status === 'accepted').length;
+      const rejected = currentResults.filter((r) => r.status === 'rejected').length;
+      const pending = currentResults.filter((r) => r.status === 'pending').length;
+      summary.textContent = `${currentResults.length} file(s) — ${pending} pending, ${accepted} accepted, ${rejected} rejected`;
+    } catch (err) {
+      await showAlert(err.message, 'Error');
+    }
+  }
+
   // --- Organize: rename/move accepted files ---
 
   const organizeBtn = document.getElementById('organize-btn');
@@ -452,7 +499,10 @@ function initScanPage(config) {
   organizeBtn.addEventListener('click', async () => {
     organizeOpen = !organizeOpen;
     organizePanel.hidden = !organizeOpen;
-    organizeBtn.textContent = organizeOpen ? `${organizeIdleLabel} ▴` : `${organizeIdleLabel} ▾`;
+    // organizeIdleLabel is a fixed config string, never user input.
+    organizeBtn.innerHTML = organizeOpen
+      ? `${organizeIdleLabel} <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>`
+      : `${organizeIdleLabel} <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>`;
     organizeBtn.setAttribute('aria-expanded', String(organizeOpen));
     if (organizeOpen) {
       await loadOrganizePlan();
