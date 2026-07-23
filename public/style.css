@@ -415,6 +415,14 @@ button.secondary {
 
 button.danger { background: #dc2626; }
 
+button.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+}
+
 .override-box {
   margin-top: 0.4rem;
   display: none;
