@@ -19,6 +19,8 @@ function initScanPage(config) {
   const scanStatus = document.getElementById('scan-status');
   const summary = document.getElementById('summary');
   const resultsBody = document.getElementById('results-body');
+  const acceptedSummary = document.getElementById('accepted-summary');
+  const acceptedBody = document.getElementById('accepted-results-body');
 
   let regions = [];
   let currentResults = [];
@@ -138,6 +140,7 @@ function initScanPage(config) {
     scanStatus.textContent = 'Scanning...';
     summary.textContent = '';
     resultsBody.innerHTML = '';
+    if (acceptedBody) acceptedBody.innerHTML = '';
 
     try {
       const res = await fetch(`${apiBase}/scan?region=${encodeURIComponent(region)}`);
@@ -162,13 +165,26 @@ function initScanPage(config) {
   }
 
   function render(region) {
+    const accepted = currentResults.filter((r) => r.status === 'accepted');
+    const rest = currentResults.filter((r) => r.status !== 'accepted');
+
     resultsBody.innerHTML = '';
-    for (const item of currentResults) {
+    for (const item of rest) {
       resultsBody.appendChild(renderRow(item, region));
+    }
+
+    if (acceptedBody) {
+      acceptedBody.innerHTML = '';
+      for (const item of accepted) {
+        acceptedBody.appendChild(renderRow(item, region, { showStatus: false }));
+      }
+    }
+    if (acceptedSummary) {
+      acceptedSummary.textContent = accepted.length ? `${accepted.length} file(s) accepted.` : 'No files accepted yet.';
     }
   }
 
-  function renderRow(item, region) {
+  function renderRow(item, region, { showStatus = true } = {}) {
     const tr = document.createElement('tr');
     tr.dataset.path = item.path;
 
@@ -200,9 +216,11 @@ function initScanPage(config) {
     renderTypeCell(typeTd, item.match);
     tr.appendChild(typeTd);
 
-    const statusTd = document.createElement('td');
-    statusTd.appendChild(statusBadge(item.status));
-    tr.appendChild(statusTd);
+    if (showStatus) {
+      const statusTd = document.createElement('td');
+      statusTd.appendChild(statusBadge(item.status));
+      tr.appendChild(statusTd);
+    }
 
     const actionsTd = document.createElement('td');
     const actionsRow = document.createElement('div');
