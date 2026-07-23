@@ -196,6 +196,10 @@ function initScanPage(config) {
     }
     tr.appendChild(matchTd);
 
+    const typeTd = document.createElement('td');
+    renderTypeCell(typeTd, item.match);
+    tr.appendChild(typeTd);
+
     const statusTd = document.createElement('td');
     statusTd.appendChild(statusBadge(item.status));
     tr.appendChild(statusTd);
@@ -264,6 +268,7 @@ function initScanPage(config) {
             item.match = title;
             item.decidedTitleId = title.id;
             renderMatchCell(matchTd, title);
+            renderTypeCell(typeTd, title);
             if (item.status === 'accepted' && title.contentType !== 'dlc') {
               renderVersionEditor(matchTd, item, region);
             }
@@ -305,14 +310,17 @@ function initScanPage(config) {
     const span = document.createElement('span');
     span.textContent = match.name || '(no name)';
     details.appendChild(span);
-    const tag = CONTENT_TYPE_TAG[match.contentType];
-    if (tag) {
-      const badge = document.createElement('span');
-      badge.className = `badge badge-type-${match.contentType}`;
-      badge.textContent = tag;
-      details.appendChild(badge);
-    }
     cell.appendChild(details);
+  }
+
+  function renderTypeCell(cell, match) {
+    cell.innerHTML = '';
+    const tag = match && CONTENT_TYPE_TAG[match.contentType];
+    if (!tag) return;
+    const badge = document.createElement('span');
+    badge.className = `badge badge-type-${match.contentType}`;
+    badge.textContent = tag;
+    cell.appendChild(badge);
   }
 
   // Base games and updates are organized as "<Name> [<Id>][<version>]<ext>".
