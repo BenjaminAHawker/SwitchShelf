@@ -178,9 +178,10 @@ app.get('/api/library/scan', (req, res) => {
     const decision = saved[file.path];
     const lookupId = decision?.titleId || file.titleId;
     const match = lookupId ? store.findByTitleId(region, lookupId) : null;
+    const version = decision?.version || file.version || '0';
     return {
       ...file,
-      match: match ? { ...match, contentType: store.getContentType(match) } : null,
+      match: match ? { ...match, contentType: store.displayContentType(match, version) } : null,
       versionOverride: decision?.version || null,
       status: decision ? decision.status : 'pending',
       decidedTitleId: decision?.titleId || null,
@@ -230,9 +231,10 @@ app.get('/api/staging/scan', (req, res) => {
     const decision = saved[file.path];
     const lookupId = decision?.titleId || file.titleId;
     const match = lookupId ? store.findByTitleId(region, lookupId) : null;
+    const version = decision?.version || file.version || '0';
     return {
       ...file,
-      match: match ? { ...match, contentType: store.getContentType(match) } : null,
+      match: match ? { ...match, contentType: store.displayContentType(match, version) } : null,
       versionOverride: decision?.version || null,
       status: decision ? decision.status : 'pending',
       decidedTitleId: decision?.titleId || null,

@@ -52,7 +52,7 @@ test('buildStagingPlan computes a destination inside TITLES_DIR', () => {
   assert.equal(skipped.length, 0);
   assert.equal(plan.length, 1);
   assert.equal(plan[0].path, stagedFile);
-  assert.equal(plan[0].to, path.join('Staging Base Game[0100000000020000]', 'Staging Base Game [0100000000020000][0].nsp'));
+  assert.equal(plan[0].to, path.join('Staging Base Game[0100000000020000]', 'Staging Base Game [0100000000020000][v0].nsp'));
 });
 
 test('applyStagingPlan moves the file from STAGING_DIR into TITLES_DIR and re-keys the decision into the library namespace', () => {

@@ -19,6 +19,8 @@ function initScanPage(config) {
   const scanStatus = document.getElementById('scan-status');
   const summary = document.getElementById('summary');
   const resultsBody = document.getElementById('results-body');
+  const acceptedSummary = document.getElementById('accepted-summary');
+  const acceptedBody = document.getElementById('accepted-results-body');
 
   let regions = [];
   let currentResults = [];
@@ -138,6 +140,7 @@ function initScanPage(config) {
     scanStatus.textContent = 'Scanning...';
     summary.textContent = '';
     resultsBody.innerHTML = '';
+    if (acceptedBody) acceptedBody.innerHTML = '';
 
     try {
       const res = await fetch(`${apiBase}/scan?region=${encodeURIComponent(region)}`);
@@ -162,13 +165,26 @@ function initScanPage(config) {
   }
 
   function render(region) {
+    const accepted = currentResults.filter((r) => r.status === 'accepted');
+    const rest = currentResults.filter((r) => r.status !== 'accepted');
+
     resultsBody.innerHTML = '';
-    for (const item of currentResults) {
+    for (const item of rest) {
       resultsBody.appendChild(renderRow(item, region));
+    }
+
+    if (acceptedBody) {
+      acceptedBody.innerHTML = '';
+      for (const item of accepted) {
+        acceptedBody.appendChild(renderRow(item, region, { showStatus: false }));
+      }
+    }
+    if (acceptedSummary) {
+      acceptedSummary.textContent = accepted.length ? `${accepted.length} file(s) accepted.` : 'No files accepted yet.';
     }
   }
 
-  function renderRow(item, region) {
+  function renderRow(item, region, { showStatus = true } = {}) {
     const tr = document.createElement('tr');
     tr.dataset.path = item.path;
 
@@ -196,9 +212,15 @@ function initScanPage(config) {
     }
     tr.appendChild(matchTd);
 
-    const statusTd = document.createElement('td');
-    statusTd.appendChild(statusBadge(item.status));
-    tr.appendChild(statusTd);
+    const typeTd = document.createElement('td');
+    renderTypeCell(typeTd, item.match);
+    tr.appendChild(typeTd);
+
+    if (showStatus) {
+      const statusTd = document.createElement('td');
+      statusTd.appendChild(statusBadge(item.status));
+      tr.appendChild(statusTd);
+    }
 
     const actionsTd = document.createElement('td');
     const actionsRow = document.createElement('div');
@@ -264,6 +286,7 @@ function initScanPage(config) {
             item.match = title;
             item.decidedTitleId = title.id;
             renderMatchCell(matchTd, title);
+            renderTypeCell(typeTd, title);
             if (item.status === 'accepted' && title.contentType !== 'dlc') {
               renderVersionEditor(matchTd, item, region);
             }
@@ -305,14 +328,17 @@ function initScanPage(config) {
     const span = document.createElement('span');
     span.textContent = match.name || '(no name)';
     details.appendChild(span);
-    const tag = CONTENT_TYPE_TAG[match.contentType];
-    if (tag) {
-      const badge = document.createElement('span');
-      badge.className = `badge badge-type-${match.contentType}`;
-      badge.textContent = tag;
-      details.appendChild(badge);
-    }
     cell.appendChild(details);
+  }
+
+  function renderTypeCell(cell, match) {
+    cell.innerHTML = '';
+    const tag = match && CONTENT_TYPE_TAG[match.contentType];
+    if (!tag) return;
+    const badge = document.createElement('span');
+    badge.className = `badge badge-type-${match.contentType}`;
+    badge.textContent = tag;
+    cell.appendChild(badge);
   }
 
   // Base games and updates are organized as "<Name> [<Id>][<version>]<ext>".
