@@ -105,6 +105,18 @@ test('displayContentType infers "update" from a non-zero version, but leaves dlc
   assert.equal(store.displayContentType(null, '131072'), null);
 });
 
+// Regression test: v0 must always read as "base", even for representations
+// that aren't the exact string "0" — a strict string check would wrongly let
+// these slip through as "update".
+test('displayContentType treats every representation of zero as "base", not just the exact string "0"', () => {
+  const base = store.findByTitleId(REGION, '0100000000010000');
+
+  assert.equal(store.displayContentType(base, '00'), 'base');
+  assert.equal(store.displayContentType(base, 0), 'base');
+  assert.equal(store.displayContentType(base, ''), 'base');
+  assert.equal(store.displayContentType(base, undefined), 'base');
+});
+
 test('search: browsing (empty query) defaults to games only, sorted by name, and excludes Switch 2 titles', () => {
   const { total, results } = store.search(REGION, '');
   const names = results.map((r) => r.name).sort();

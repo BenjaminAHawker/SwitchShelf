@@ -229,7 +229,17 @@ function initScanPage(config) {
     const acceptBtn = document.createElement('button');
     acceptBtn.textContent = 'Accept';
     acceptBtn.disabled = !item.match || item.status === 'accepted';
-    acceptBtn.addEventListener('click', () => decide(item, 'accepted', item.decidedTitleId || item.titleId, region));
+    acceptBtn.addEventListener('click', () => {
+      // The version shown while reviewing is often just the auto-extracted
+      // one from the filename (shown as a placeholder, not saved yet) — carry
+      // it into the decision on accept so ownership works immediately,
+      // instead of only once someone manually retypes the same number into
+      // the version field.
+      const version = item.match && item.match.contentType !== 'dlc'
+        ? item.versionOverride ?? item.version ?? null
+        : undefined;
+      decide(item, 'accepted', item.decidedTitleId || item.titleId, region, version);
+    });
 
     const rejectBtn = document.createElement('button');
     rejectBtn.className = 'secondary';
@@ -404,11 +414,13 @@ function initScanPage(config) {
     return span;
   }
 
-  async function decide(item, status, titleId, region) {
+  async function decide(item, status, titleId, region, version) {
+    const body = { path: item.path, status, titleId, region };
+    if (version !== undefined) body.version = version;
     const res = await fetch(`${apiBase}/decision`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: item.path, status, titleId, region }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -417,6 +429,7 @@ function initScanPage(config) {
     }
     item.status = status;
     item.decidedTitleId = titleId;
+    if (version !== undefined) item.versionOverride = version;
     render(region);
     const accepted = currentResults.filter((r) => r.status === 'accepted').length;
     const rejected = currentResults.filter((r) => r.status === 'rejected').length;
