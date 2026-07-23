@@ -455,6 +455,12 @@ function initScanPage(config) {
     const rejected = currentResults.filter((r) => r.status === 'rejected').length;
     const pending = currentResults.filter((r) => r.status === 'pending').length;
     summary.textContent = `${currentResults.length} file(s) — ${pending} pending, ${accepted} accepted, ${rejected} rejected`;
+    // Keep an already-open Organize panel in sync with the newly accepted/
+    // rejected file, instead of leaving it showing a stale plan until the
+    // user manually closes and reopens it.
+    if (organizeOpen) {
+      await loadOrganizePlan();
+    }
   }
 
   async function deleteItem(item, region) {
@@ -479,6 +485,9 @@ function initScanPage(config) {
       const rejected = currentResults.filter((r) => r.status === 'rejected').length;
       const pending = currentResults.filter((r) => r.status === 'pending').length;
       summary.textContent = `${currentResults.length} file(s) — ${pending} pending, ${accepted} accepted, ${rejected} rejected`;
+      if (organizeOpen) {
+        await loadOrganizePlan();
+      }
     } catch (err) {
       await showAlert(err.message, 'Error');
     }

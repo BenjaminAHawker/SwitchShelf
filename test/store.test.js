@@ -251,7 +251,7 @@ test('getDemosFor returns nothing for a title with no matching demo', () => {
 // Switch2 dedup doesn't catch this. Only the lowest-nsuId (first-listed, i.e.
 // plain) entry should ever show up.
 test('search: a base game listed twice under the same titleId (e.g. a bundle edition) only appears once', () => {
-  const DUPE_REGION = 'DUPE.en.json';
+  const DUPE_REGION = 'ZZ.en.json';
   writeJSON(dataDir, DUPE_REGION, {
     100: { id: '0100000000030000', name: 'Great Game', nsuId: 100, iconUrl: 'icon100', languages: ['en'], releaseDate: 20210101 },
     101: { id: '0100000000030000', name: 'Great Game Legendary Edition', nsuId: 101, iconUrl: 'icon101', languages: ['en'], releaseDate: 20210601 },
