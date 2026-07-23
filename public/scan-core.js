@@ -2,6 +2,9 @@
 // demos are distinguishable from base games (which get no tag).
 const CONTENT_TYPE_TAG = { dlc: 'DLC', update: 'Update', demo: 'Demo' };
 
+// Static markup, never interpolated with any untrusted value.
+const TRASH_ICON_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2h4a1 1 0 0 1 1 1v1h3v1.5H2V4h3V3a1 1 0 0 1 1-1zm-1.5 4h7l-.6 7.09a1.5 1.5 0 0 1-1.5 1.41H6.6a1.5 1.5 0 0 1-1.5-1.41L4.5 6z"/></svg>';
+
 // Shared logic behind both Library Scan (scan.js) and Staging (staging.js):
 // scan a folder, match files against titledb, accept/reject/override each
 // one, then preview and apply a rename/move plan. The two pages differ only
@@ -258,8 +261,10 @@ function initScanPage(config) {
 
     if (allowDelete) {
       const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'danger';
-      deleteBtn.textContent = 'Delete';
+      deleteBtn.className = 'danger icon-btn';
+      deleteBtn.innerHTML = TRASH_ICON_SVG;
+      deleteBtn.setAttribute('aria-label', `Delete ${item.fileName}`);
+      deleteBtn.title = 'Delete';
       deleteBtn.addEventListener('click', () => deleteItem(item, region));
       actionsRow.appendChild(deleteBtn);
     }
