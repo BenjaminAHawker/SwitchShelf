@@ -37,6 +37,7 @@ function renderGrid(titles, region) {
     const item = document.createElement('a');
     item.className = 'library-item';
     item.href = `details.html?${new URLSearchParams({ region, titleId: title.id })}`;
+    item.title = title.name || '(no name)';
 
     const iconWrap = document.createElement('div');
     iconWrap.className = 'library-item-icon';
@@ -44,15 +45,10 @@ function renderGrid(titles, region) {
       const img = document.createElement('img');
       img.src = title.iconUrl;
       img.loading = 'lazy';
-      img.alt = '';
+      img.alt = title.name || '';
       iconWrap.appendChild(img);
     }
     item.appendChild(iconWrap);
-
-    const name = document.createElement('span');
-    name.className = 'library-item-name';
-    name.textContent = title.name || '(no name)';
-    item.appendChild(name);
 
     libraryGrid.appendChild(item);
   }
