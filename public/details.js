@@ -35,10 +35,16 @@ function metaRow(label, value) {
   return `<div class="meta-row"><span class="meta-label">${label}</span><span class="meta-value">${value}</span></div>`;
 }
 
+// Escapes for safe use in both HTML text content and quoted attribute values
+// (textContent->innerHTML round-tripping only escapes &, <, > — not quotes —
+// which is unsafe wherever this is interpolated inside a "..."/'...' attribute).
 function esc(s) {
-  const d = document.createElement('div');
-  d.textContent = s ?? '';
-  return d.innerHTML;
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 async function load() {
