@@ -55,6 +55,20 @@ test('getAcceptedVersionsForTitle returns distinct manually-set versions accepte
   assert.deepEqual(decisions.getAcceptedVersionsForTitle('DEADBEEFDEADBEEF'), []);
 });
 
+// Regression test: accepting a plain base game file now saves its v0 too
+// (see the "Accept" fix for auto-detected update versions), but v0 is always
+// the base install, never an update — it must never show up here, or a
+// downstream "Update v0" entry would get synthesized for a title that has no
+// actual update.
+test('getAcceptedVersionsForTitle excludes v0 — it is always the base install, never an update', () => {
+  decisions.setDecision('Base Game.nsp', { status: 'accepted', titleId: '0100000000000007', region: 'US.en.json', version: '0' });
+  decisions.setDecision('Base Game Padded.nsp', { status: 'accepted', titleId: '0100000000000007', region: 'US.en.json', version: '00' });
+  decisions.setDecision('Real Update.nsp', { status: 'accepted', titleId: '0100000000000007', region: 'US.en.json', version: '65536' });
+
+  const versions = decisions.getAcceptedVersionsForTitle('0100000000000007');
+  assert.deepEqual([...versions], ['65536']);
+});
+
 test('getAcceptedTitleIds only counts accepted decisions with a titleId', () => {
   decisions.setDecision('Rejected.nsp', { status: 'rejected', titleId: '0100000000000099', region: 'US.en.json' });
   decisions.setDecision('NoId.nsp', { status: 'accepted', titleId: null, region: 'US.en.json' });
