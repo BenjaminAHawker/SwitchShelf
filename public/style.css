@@ -172,6 +172,18 @@ summary:focus-visible,
   }
 }
 
+/* A small, contained loading spinner is a functional status indicator (it's
+   how "still moving this file" is communicated), not the kind of large-scale
+   decorative motion reduced-motion settings are meant to suppress — so it
+   keeps spinning even when the OS or the in-app "Reduce motion" toggle asks
+   to stop everything else. */
+.fa-spin {
+  animation-name: fa-spin !important;
+  animation-duration: 1s !important;
+  animation-iteration-count: infinite !important;
+  animation-timing-function: linear !important;
+}
+
 .a11y-high-contrast {
   --fg: #000000;
   --bg: #ffffff;
