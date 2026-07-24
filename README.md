@@ -4,17 +4,18 @@
 
 A self-hosted web app for browsing [blawar/titledb](https://github.com/blawar/titledb) by region, and for matching a local Nintendo Switch title library against it.
 
-> **Note:** This is a personal-use project, built because I couldn't find an existing tool that did exactly what I wanted. It was built with heavy use of AI assistance and reviewed personally by me, but it has not been professionally audited. **Use at your own risk** — especially the Library Scan "Organize" feature and the Staging page, both of which rename and move files on your filesystem.
+> **Note:** This is a personal-use project, built because I couldn't find an existing tool that did exactly what I wanted. It was built with heavy use of AI assistance and reviewed personally by me, but it has not been professionally audited. **Use at your own risk** — especially the Library Scan "Organize" feature and the Staging page, both of which rename and move files on your filesystem, and Staging's delete action, which permanently removes a file from disk.
 
 ## What it does
 
 - Syncs region catalog files (and the DLC/update metadata file) from `blawar/titledb` on demand, only downloading what you select.
 - Search/browse titles by name or nsuId, sortable by Name or Release Date (click a column header — clicking again flips direction), with filters for content type (games vs. DLC/updates/demos), language, and ownership. Switch 2 titles are excluded entirely — there's currently no way to dump/back up a Switch 2 game, so they're not relevant to what this app does.
+- **My Games**: a grid view of every base game you've accepted into your library (via Library Scan or Staging), linking straight to each title's details page.
 - Per-title details page: full metadata, screenshots, matched demos, and related DLC/updates — including versions you've matched locally that titledb doesn't catalog yet.
 - **Library Scan**: point the app at a local folder of `.nsp`/`.nsz`/`.xci`/`.xcz` files, match each one against titledb by the title ID in its filename, and manually accept/reject/override each match — including matching a file directly to its DLC or update-edition catalog entry, and setting/correcting a file's version by hand when its filename doesn't carry one. Accepted files move into their own table, separate from what still needs review.
-- **Organize**: for accepted matches, preview and optionally apply a rename/move into `<Title> [<TitleId>]/` folders with cleaned-up filenames (`<Title> [<TitleId>][v<version>]` for base games/updates).
-- **Staging** (opt-in, off by default): a separate drop-off folder for new files. Scan and match it exactly like Library Scan, then accepted files are moved (renamed the same way as Organize) out of Staging and into the main Library, rather than being reorganized in place.
-- Accessibility options (top-right of every page): high contrast, larger text, reduced motion, and always-underlined links — persisted locally and applied instantly.
+- **Organize**: for accepted matches, preview and optionally apply a rename/move into `<Title> [<TitleId>]/` folders with cleaned-up filenames (`<Title> [<TitleId>][v<version>]` for base games/updates). Files are moved one at a time with a live progress bar and a per-file status icon, a toast confirms the result when it's done, and the panel collapses itself once there's nothing left to organize.
+- **Staging** (opt-in, off by default): a separate drop-off folder for new files. Scan and match it exactly like Library Scan, then accepted files are moved (renamed the same way as Organize) out of Staging and into the main Library, rather than being reorganized in place. Any Staging subfolder left empty after its files are moved out is cleaned up automatically. Staging also has a delete action (with confirmation) to permanently remove an unwanted file from disk — Library Scan intentionally has no equivalent, since this app should never delete something already in your organized library.
+- Accessibility options (top-right of every page): high contrast, larger text, reduced motion, and always-underlined links — persisted locally and applied instantly. Loading/status spinners keep animating regardless, since they communicate something actually happening rather than being decorative motion.
 
 ## Screenshots
 
@@ -26,9 +27,17 @@ Same page on mobile:
 
 <img src="screenshots/main-region-default-mobile.png" alt="Main search page on mobile" width="400" />
 
+My Games — a grid of every base game accepted into your library:
+
+![My Games grid](screenshots/my-games.png)
+
 Library Scan — matched files with type badges (DLC/Update), a version editor, and accepted files split into their own table:
 
 ![Library Scan page](screenshots/library-scan.png)
+
+Staging — a drop-off folder scanned and matched the same way, with a delete action per file:
+
+![Staging page](screenshots/staging.png)
 
 ## Requirements
 
@@ -56,7 +65,7 @@ Both folders are mounted **read-write**, since Organize and Staging need to rena
 
 - `server.js` — Express app and API routes.
 - `lib/` — sync (titledb downloads), store (search/filtering/ownership), scanner (local file matching, both the Library and Staging folders), decisions (accept/reject state, namespaced per source), organize (rename/move planning, both in-place and Staging → Library), cnmts (DLC/update relationships), expand (merges cnmts relations with locally-matched versions for the DLC/Updates list).
-- `public/` — static frontend (search page, details page, library scan page, staging page — the latter two share `scan-core.js`).
+- `public/` — static frontend (search page, details page, My Games grid, library scan page, staging page — the latter two share `scan-core.js`). `public/vendor/fontawesome/` is a self-hosted, minimal subset of Font Awesome Free (no CDN), vendored via `npm install --save-dev @fortawesome/fontawesome-free` and copying just the solid/regular CSS + webfonts in use.
 - `data/` — downloaded titledb files and app state (gitignored, persisted in a Docker volume).
 - `test/` — unit tests for the `lib/` modules (Node's built-in test runner, no extra dependencies).
 
