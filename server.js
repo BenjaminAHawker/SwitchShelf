@@ -1,5 +1,7 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const sync = require('./lib/sync');
 const store = require('./lib/store');
 const scanner = require('./lib/scanner');
@@ -32,8 +34,8 @@ app.use('/api/staging', (req, res, next) => {
 
 app.get('/api/regions', async (req, res) => {
   try {
-    const regions = await sync.getRegionsStatus();
-    res.json(regions);
+    const status = await sync.getRegionsStatus();
+    res.json(status);
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
@@ -41,8 +43,8 @@ app.get('/api/regions', async (req, res) => {
 
 app.get('/api/extras', async (req, res) => {
   try {
-    const extras = await sync.getExtrasStatus();
-    res.json(extras);
+    const status = await sync.getExtrasStatus();
+    res.json(status);
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
@@ -66,6 +68,42 @@ app.post('/api/sync', async (req, res) => {
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
+});
+
+// Manual fallback for when GitHub — or blawar/titledb itself — is
+// unreachable: lets a region file or cnmts.json be provided directly instead
+// of synced. Streamed straight to disk (not buffered into memory like
+// express.json() would) since these files can be tens of MB.
+const uploadTmpDir = path.join(sync.DATA_DIR, '.uploads-tmp');
+fs.mkdirSync(uploadTmpDir, { recursive: true });
+const upload = multer({ dest: uploadTmpDir, limits: { fileSize: 300 * 1024 * 1024 } });
+
+app.post('/api/upload', (req, res) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    const { name } = req.body || {};
+    if (!req.file) {
+      return res.status(400).json({ error: 'file is required' });
+    }
+    if (!name) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ error: 'name is required, e.g. "US.en.json" or "cnmts.json"' });
+    }
+    try {
+      sync.applyUpload(name, req.file.path);
+    } catch (uploadErr) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ error: uploadErr.message });
+    }
+    if (name === 'cnmts.json') {
+      cnmts.invalidate();
+    } else {
+      store.invalidateAll(name);
+    }
+    res.json({ name, uploaded: true });
+  });
 });
 
 app.get('/api/languages', (req, res) => {

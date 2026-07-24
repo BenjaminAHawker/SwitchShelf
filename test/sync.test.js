@@ -39,8 +39,9 @@ test('listRemoteRegionFiles filters to region files, sorted by name', async () =
 
 test('getRegionsStatus reports nothing downloaded initially', async () => {
   mockGithubOk();
-  const status = await sync.getRegionsStatus();
-  const us = status.find((s) => s.name === 'US.en.json');
+  const { source, regions } = await sync.getRegionsStatus();
+  assert.equal(source, 'remote');
+  const us = regions.find((s) => s.name === 'US.en.json');
   assert.equal(us.downloaded, false);
   assert.equal(us.stale, false);
   assert.equal(us.region, 'US');
@@ -59,10 +60,11 @@ test('syncFile downloads a missing file and records it in meta', async () => {
 
 test('getRegionsStatus now reports that file as downloaded and not stale', async () => {
   mockGithubOk();
-  const status = await sync.getRegionsStatus();
-  const us = status.find((s) => s.name === 'US.en.json');
+  const { regions } = await sync.getRegionsStatus();
+  const us = regions.find((s) => s.name === 'US.en.json');
   assert.equal(us.downloaded, true);
   assert.equal(us.stale, false);
+  assert.equal(us.source, 'sync');
 });
 
 test('syncFile is a no-op (updated:false) when the sha already matches', async () => {
@@ -87,8 +89,8 @@ test('syncFile reports stale/updated when the upstream sha changes', async () =>
     return new Response('new contents', { status: 200 });
   };
 
-  const status = await sync.getRegionsStatus();
-  const us = status.find((s) => s.name === 'US.en.json');
+  const { regions } = await sync.getRegionsStatus();
+  const us = regions.find((s) => s.name === 'US.en.json');
   assert.equal(us.stale, true);
 
   const result = await sync.syncFile('US.en.json');
@@ -114,4 +116,68 @@ test('syncFile rejects a plausibly-named file the remote does not actually have'
 test('listRemoteRegionFiles surfaces a GitHub API error', async () => {
   fetchImpl = async () => new Response('rate limited', { status: 403 });
   await assert.rejects(() => sync.listRemoteRegionFiles(), /GitHub API error 403/);
+});
+
+// Regression coverage for the "blawar/titledb goes away" scenario: the app
+// should degrade to a bundled region list instead of the whole page breaking.
+test('getRegionsStatus falls back to the bundled region list when GitHub is unreachable, and still reflects local sync state', async () => {
+  mockGithubOk();
+  await sync.syncFile('US.en.json'); // downloaded while GitHub is still reachable
+
+  fetchImpl = async () => {
+    throw new TypeError('fetch failed');
+  };
+  const { source, regions } = await sync.getRegionsStatus();
+  assert.equal(source, 'fallback');
+  assert.ok(regions.length > 50); // the bundled snapshot, not an empty list
+  const us = regions.find((r) => r.name === 'US.en.json');
+  assert.equal(us.downloaded, true);
+  assert.equal(us.stale, false); // no sha to compare against while offline — never guessed
+  const unsynced = regions.find((r) => r.name === 'FR.fr.json');
+  assert.equal(unsynced.downloaded, false);
+});
+
+test('getExtrasStatus falls back to a bundled cnmts.json entry when GitHub is unreachable', async () => {
+  fetchImpl = async () => {
+    throw new TypeError('fetch failed');
+  };
+  const { source, extras } = await sync.getExtrasStatus();
+  assert.equal(source, 'fallback');
+  assert.deepEqual(extras.map((e) => e.name), ['cnmts.json']);
+});
+
+test('applyUpload rejects a name outside the region/extra pattern', () => {
+  const tmp = path.join(sync.DATA_DIR, 'upload-tmp-1.json');
+  fs.writeFileSync(tmp, '{}');
+  assert.throws(() => sync.applyUpload('../escape.json', tmp), /Unsupported file name/);
+  fs.unlinkSync(tmp);
+});
+
+test('applyUpload rejects a file that is not valid JSON, without touching any existing data', () => {
+  const tmp = path.join(sync.DATA_DIR, 'upload-tmp-2.json');
+  fs.writeFileSync(tmp, 'not json');
+  assert.throws(() => sync.applyUpload('ZZ.en.json', tmp), /not valid JSON/);
+  assert.equal(fs.existsSync(path.join(sync.DATA_DIR, 'ZZ.en.json')), false);
+});
+
+test('applyUpload files a valid manually-provided region file and records it with source "upload"', async () => {
+  const tmp = path.join(sync.DATA_DIR, 'upload-tmp-3.json');
+  fs.writeFileSync(tmp, JSON.stringify({ 1: { id: '0100000000099999', name: 'Manually Added Game' } }));
+  sync.applyUpload('ZZ.en.json', tmp);
+
+  assert.equal(fs.existsSync(tmp), false); // moved, not copied-and-left-behind
+  const written = JSON.parse(fs.readFileSync(path.join(sync.DATA_DIR, 'ZZ.en.json'), 'utf8'));
+  assert.equal(written['1'].name, 'Manually Added Game');
+
+  fetchImpl = async () => {
+    throw new TypeError('fetch failed');
+  };
+  const { regions } = await sync.getRegionsStatus();
+  const zz = regions.find((r) => r.name === 'ZZ.en.json');
+  // ZZ isn't a real titledb region, so it only shows up because it's locally
+  // present — getRegionsStatus folds in anything meta.json knows about that
+  // the bundled list doesn't, so an upload is never invisible.
+  assert.ok(zz, 'an uploaded file not in the bundled list should still be reported');
+  assert.equal(zz.downloaded, true);
+  assert.equal(zz.source, 'upload');
 });

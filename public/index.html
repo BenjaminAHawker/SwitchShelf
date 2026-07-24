@@ -49,6 +49,10 @@
   </header>
 
   <main id="main-content" tabindex="-1">
+    <section id="offline-notice" class="status status-warning" role="status" aria-live="polite" hidden>
+      Couldn't reach GitHub to list titledb's regions — showing a bundled list instead. Downloads/updates may not work until GitHub is reachable again, but you can still <a href="#upload-section">upload data manually</a> below.
+    </section>
+
     <section class="controls">
       <label for="region-select">Region</label>
       <select id="region-select"></select>
@@ -62,6 +66,14 @@
       <span id="cnmts-label" class="status" role="status" aria-live="polite"></span>
       <button id="cnmts-sync-btn">Sync index</button>
       <span id="cnmts-status" class="status" role="status" aria-live="polite"></span>
+    </section>
+
+    <section id="upload-section" class="controls" aria-label="Upload titledb data manually" hidden>
+      <label for="upload-name-select">Upload manually</label>
+      <select id="upload-name-select" title="Which file this JSON should replace/provide"></select>
+      <input id="upload-file-input" type="file" accept="application/json,.json" aria-label="titledb JSON file to upload" />
+      <button id="upload-btn"><i class="fa-solid fa-upload" aria-hidden="true"></i> Upload</button>
+      <span id="upload-status" class="status" role="status" aria-live="polite"></span>
     </section>
 
     <section class="controls">

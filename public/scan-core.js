@@ -128,12 +128,13 @@ function initScanPage(config) {
 
   async function loadRegions() {
     const res = await fetch('/api/regions');
-    regions = await res.json();
+    const data = await res.json();
+    regions = data.regions || [];
     regionSelect.innerHTML = '';
     for (const r of regions) {
       const opt = document.createElement('option');
       opt.value = r.name;
-      opt.textContent = `${r.region} (${r.language})${r.downloaded ? '' : ' - not downloaded'}`;
+      opt.textContent = `${r.region} (${r.language})${r.downloaded ? (r.source === 'upload' ? ' - uploaded' : '') : ' - not downloaded'}`;
       if (!r.downloaded) opt.disabled = true;
       regionSelect.appendChild(opt);
     }

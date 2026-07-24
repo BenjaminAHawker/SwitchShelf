@@ -13,6 +13,12 @@ const languageCheckboxes = document.getElementById('language-checkboxes');
 const resultsInfo = document.getElementById('results-info');
 const resultsBody = document.getElementById('results-body');
 const sortButtons = document.querySelectorAll('.sort-btn');
+const offlineNotice = document.getElementById('offline-notice');
+const uploadSection = document.getElementById('upload-section');
+const uploadNameSelect = document.getElementById('upload-name-select');
+const uploadFileInput = document.getElementById('upload-file-input');
+const uploadBtn = document.getElementById('upload-btn');
+const uploadStatus = document.getElementById('upload-status');
 
 let regions = [];
 let cnmtsState = { downloaded: false, stale: false };
@@ -59,13 +65,14 @@ function fmtReleaseDate(yyyymmdd) {
 }
 
 function regionLabel(r) {
-  const flag = r.downloaded ? (r.stale ? '⚠️ update available' : '✅') : '⬇️ not downloaded';
+  const flag = !r.downloaded ? '⬇️ not downloaded' : r.source === 'upload' ? '📁 uploaded' : r.stale ? '⚠️ update available' : '✅';
   return `${r.region} (${r.language}) - ${flag}`;
 }
 
 async function loadRegions(selectName) {
   const res = await fetch('/api/regions');
-  regions = await res.json();
+  const data = await res.json();
+  regions = data.regions || [];
   regionSelect.innerHTML = '';
   for (const r of regions) {
     const opt = document.createElement('option');
@@ -81,6 +88,8 @@ async function loadRegions(selectName) {
   }
   updateSyncButton();
   updateDefaultRegionButton();
+  updateOfflineNotice(data.source);
+  populateUploadNameSelect();
 }
 
 function updateDefaultRegionButton() {
@@ -95,13 +104,85 @@ function updateDefaultRegionButton() {
 
 async function loadCnmtsStatus() {
   const res = await fetch('/api/extras');
-  const extras = await res.json();
+  const data = await res.json();
+  const extras = data.extras || [];
   cnmtsState = extras.find((e) => e.name === 'cnmts.json') || { downloaded: false, stale: false };
-  cnmtsLabel.textContent = cnmtsState.downloaded
-    ? (cnmtsState.stale ? '⚠️ update available' : '✅ index ready')
-    : '⬇️ not downloaded';
+  cnmtsLabel.textContent = !cnmtsState.downloaded
+    ? '⬇️ not downloaded'
+    : cnmtsState.source === 'upload'
+      ? '📁 uploaded'
+      : cnmtsState.stale ? '⚠️ update available' : '✅ index ready';
   cnmtsSyncBtn.textContent = cnmtsState.downloaded ? (cnmtsState.stale ? 'Update' : 'Re-sync') : 'Sync index';
 }
+
+// --- Manual upload: a fallback for when GitHub, or blawar/titledb itself,
+// is unreachable — lets a region file or cnmts.json be provided directly.
+
+// The manual-upload control is a fallback for when GitHub is unreachable —
+// keep it out of the way otherwise, rather than offering it as a permanent
+// alternate path to syncing.
+function updateOfflineNotice(source) {
+  const offline = source === 'fallback';
+  if (offlineNotice) offlineNotice.hidden = !offline;
+  if (uploadSection) uploadSection.hidden = !offline;
+}
+
+function populateUploadNameSelect() {
+  if (!uploadNameSelect) return;
+  const previous = uploadNameSelect.value;
+  uploadNameSelect.innerHTML = '';
+  for (const r of regions) {
+    const opt = document.createElement('option');
+    opt.value = r.name;
+    opt.textContent = `${r.name} — ${r.region} (${r.language})`;
+    uploadNameSelect.appendChild(opt);
+  }
+  const cnmtsOpt = document.createElement('option');
+  cnmtsOpt.value = 'cnmts.json';
+  cnmtsOpt.textContent = 'cnmts.json — DLC/Updates index';
+  uploadNameSelect.appendChild(cnmtsOpt);
+
+  if (previous && [...uploadNameSelect.options].some((o) => o.value === previous)) {
+    uploadNameSelect.value = previous;
+  } else if (regionSelect.value) {
+    uploadNameSelect.value = regionSelect.value;
+  }
+}
+
+uploadBtn?.addEventListener('click', async () => {
+  const name = uploadNameSelect.value;
+  const file = uploadFileInput.files[0];
+  if (!name) return;
+  if (!file) {
+    uploadStatus.textContent = 'Choose a JSON file first.';
+    return;
+  }
+
+  uploadBtn.disabled = true;
+  uploadStatus.textContent = `Uploading ${name}...`;
+  try {
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('file', file);
+    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+    uploadStatus.textContent = `${name} uploaded.`;
+    uploadFileInput.value = '';
+    if (name === 'cnmts.json') {
+      await loadCnmtsStatus();
+    } else {
+      await loadRegions(name);
+      await loadLanguages(name);
+      await runSearch();
+    }
+  } catch (err) {
+    uploadStatus.textContent = `Error: ${err.message}`;
+  } finally {
+    uploadBtn.disabled = false;
+  }
+});
 
 function currentRegion() {
   return regions.find((r) => r.name === regionSelect.value);
