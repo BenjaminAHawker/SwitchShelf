@@ -1,0 +1,53 @@
+name: Docker build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build and smoke-test image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: switchshelf:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-test the image
+        run: |
+          docker run -d --name switchshelf-ci -p 3000:3000 switchshelf:ci
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:3000/ > /dev/null; then
+              echo "Server responded successfully."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not respond in time." >&2
+          docker logs switchshelf-ci
+          exit 1
+
+      - name: Container logs
+        if: always()
+        run: docker logs switchshelf-ci || true
+
+      - name: Clean up
+        if: always()
+        run: docker rm -f switchshelf-ci || true
