@@ -104,6 +104,28 @@ function initScanPage(config) {
     return showModal({ title, message, confirmText: 'Confirm', cancelText: 'Cancel', showCancel: true });
   }
 
+  // --- Toast: brief, non-blocking status notification ---
+
+  const toastContainer = document.getElementById('toast-container');
+
+  function showToast(message, { variant = 'success', duration = 4000 } = {}) {
+    if (!toastContainer) return;
+    const toast = document.createElement('div');
+    toast.className = variant === 'error' ? 'toast toast-error' : 'toast';
+    toast.textContent = message;
+    toastContainer.appendChild(toast);
+
+    // Next frame, so the initial (hidden) state paints before transitioning in.
+    requestAnimationFrame(() => toast.classList.add('toast-visible'));
+
+    const remove = () => toast.remove();
+    setTimeout(() => {
+      toast.classList.remove('toast-visible');
+      toast.addEventListener('transitionend', remove, { once: true });
+      setTimeout(remove, 500); // fallback in case transitionend never fires
+    }, duration);
+  }
+
   async function loadRegions() {
     const res = await fetch('/api/regions');
     regions = await res.json();
@@ -505,22 +527,28 @@ function initScanPage(config) {
 
   let organizeOpen = false;
 
-  organizeBtn.addEventListener('click', async () => {
-    organizeOpen = !organizeOpen;
+  function setOrganizeOpen(open) {
+    organizeOpen = open;
     organizePanel.hidden = !organizeOpen;
     // organizeIdleLabel is a fixed config string, never user input.
     organizeBtn.innerHTML = organizeOpen
       ? `${organizeIdleLabel} <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>`
       : `${organizeIdleLabel} <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>`;
     organizeBtn.setAttribute('aria-expanded', String(organizeOpen));
+  }
+
+  organizeBtn.addEventListener('click', async () => {
+    setOrganizeOpen(!organizeOpen);
     if (organizeOpen) {
       await loadOrganizePlan();
     }
   });
 
+  // Returns the fetched plan data (so callers can inspect e.g. count), or
+  // null if the plan couldn't be built.
   async function loadOrganizePlan() {
     const region = regionSelect.value;
-    if (!region) return;
+    if (!region) return null;
     organizeStatus.textContent = 'Building plan...';
     organizeBody.innerHTML = '';
     organizeSkipped.innerHTML = '';
@@ -555,8 +583,10 @@ function initScanPage(config) {
       }
 
       organizeApplyBtn.disabled = data.count === 0;
+      return data;
     } catch (err) {
       organizeStatus.textContent = `Error: ${err.message}`;
+      return null;
     }
   }
 
@@ -623,10 +653,24 @@ function initScanPage(config) {
         errBox.textContent = data.errors.map((e) => `${e.path}: ${e.error}`).join(' | ');
         organizeSkipped.appendChild(errBox);
       }
-      await loadOrganizePlan();
+      showToast(
+        data.errorCount
+          ? `Moved ${data.movedCount} file(s), ${data.errorCount} error(s).`
+          : `Moved ${data.movedCount} file(s) to your library.`,
+        { variant: data.errorCount ? 'error' : 'success' }
+      );
+
+      const plan = await loadOrganizePlan();
       await runScan();
+
+      // Nothing left to organize — collapse the panel instead of leaving it
+      // open on an empty plan until the user closes it themselves.
+      if (plan && plan.count === 0 && organizeOpen) {
+        setOrganizeOpen(false);
+      }
     } catch (err) {
       organizeStatus.textContent = `Error: ${err.message}`;
+      showToast(`Error: ${err.message}`, { variant: 'error' });
     } finally {
       organizeApplyBtn.disabled = false;
     }
