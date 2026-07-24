@@ -729,6 +729,36 @@ td.expand-cell {
   border-left-color: #dc2626;
 }
 
+.progress-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border);
+  overflow: hidden;
+  margin: 0.75rem 0;
+}
+
+.progress-bar[hidden] {
+  display: none;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+.organize-row-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+}
+
+.organize-row-status.is-moving { color: var(--accent); }
+.organize-row-status.is-done { color: #166534; }
+.organize-row-status.is-error { color: #dc2626; }
+
 .library-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));

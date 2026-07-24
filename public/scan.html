@@ -107,12 +107,16 @@
               <th scope="col">Current file</th>
               <th scope="col">New location</th>
               <th scope="col">Type</th>
+              <th scope="col"><span class="sr-only">Status</span></th>
             </tr>
           </thead>
           <tbody id="organize-body"></tbody>
         </table>
       </div>
       <div id="organize-skipped"></div>
+      <div id="organize-progress" class="progress-bar" hidden>
+        <div id="organize-progress-fill" class="progress-bar-fill"></div>
+      </div>
       <button id="organize-apply-btn" disabled>Move selected files</button>
     </div>
   </main>
