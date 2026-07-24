@@ -34,7 +34,7 @@
     <div>
       <h1>Library Scan</h1>
       <p class="subtitle">Match your local title files against titledb. Nothing is accepted automatically &mdash; review each match below.</p>
-      <nav aria-label="Site"><a href="index.html">Search</a> · <a href="scan.html" aria-current="page">Library Scan</a> · <a href="staging.html">Staging</a></nav>
+      <nav aria-label="Site"><a href="index.html">Search</a> · <a href="library.html">My Games</a> · <a href="scan.html" aria-current="page">Library Scan</a> · <a href="staging.html">Staging</a></nav>
     </div>
     <details class="a11y-menu">
       <summary class="a11y-menu-btn" aria-label="Accessibility options"><i class="fa-solid fa-universal-access" aria-hidden="true"></i> Accessibility</summary>
@@ -107,12 +107,16 @@
               <th scope="col">Current file</th>
               <th scope="col">New location</th>
               <th scope="col">Type</th>
+              <th scope="col"><span class="sr-only">Status</span></th>
             </tr>
           </thead>
           <tbody id="organize-body"></tbody>
         </table>
       </div>
       <div id="organize-skipped"></div>
+      <div id="organize-progress" class="progress-bar" hidden>
+        <div id="organize-progress-fill" class="progress-bar-fill"></div>
+      </div>
       <button id="organize-apply-btn" disabled>Move selected files</button>
     </div>
   </main>
@@ -127,6 +131,8 @@
       </div>
     </div>
   </div>
+
+  <div id="toast-container" class="toast-container" role="status" aria-live="polite" aria-atomic="true"></div>
 
   <script src="region-pref.js"></script>
   <script src="a11y.js"></script>

@@ -104,6 +104,28 @@ function initScanPage(config) {
     return showModal({ title, message, confirmText: 'Confirm', cancelText: 'Cancel', showCancel: true });
   }
 
+  // --- Toast: brief, non-blocking status notification ---
+
+  const toastContainer = document.getElementById('toast-container');
+
+  function showToast(message, { variant = 'success', duration = 4000 } = {}) {
+    if (!toastContainer) return;
+    const toast = document.createElement('div');
+    toast.className = variant === 'error' ? 'toast toast-error' : 'toast';
+    toast.textContent = message;
+    toastContainer.appendChild(toast);
+
+    // Next frame, so the initial (hidden) state paints before transitioning in.
+    requestAnimationFrame(() => toast.classList.add('toast-visible'));
+
+    const remove = () => toast.remove();
+    setTimeout(() => {
+      toast.classList.remove('toast-visible');
+      toast.addEventListener('transitionend', remove, { once: true });
+      setTimeout(remove, 500); // fallback in case transitionend never fires
+    }, duration);
+  }
+
   async function loadRegions() {
     const res = await fetch('/api/regions');
     regions = await res.json();
@@ -455,6 +477,12 @@ function initScanPage(config) {
     const rejected = currentResults.filter((r) => r.status === 'rejected').length;
     const pending = currentResults.filter((r) => r.status === 'pending').length;
     summary.textContent = `${currentResults.length} file(s) — ${pending} pending, ${accepted} accepted, ${rejected} rejected`;
+    // Keep an already-open Organize panel in sync with the newly accepted/
+    // rejected file, instead of leaving it showing a stale plan until the
+    // user manually closes and reopens it.
+    if (organizeOpen) {
+      await loadOrganizePlan();
+    }
   }
 
   async function deleteItem(item, region) {
@@ -479,6 +507,9 @@ function initScanPage(config) {
       const rejected = currentResults.filter((r) => r.status === 'rejected').length;
       const pending = currentResults.filter((r) => r.status === 'pending').length;
       summary.textContent = `${currentResults.length} file(s) — ${pending} pending, ${accepted} accepted, ${rejected} rejected`;
+      if (organizeOpen) {
+        await loadOrganizePlan();
+      }
     } catch (err) {
       await showAlert(err.message, 'Error');
     }
@@ -493,29 +524,58 @@ function initScanPage(config) {
   const organizeBody = document.getElementById('organize-body');
   const organizeSkipped = document.getElementById('organize-skipped');
   const organizeApplyBtn = document.getElementById('organize-apply-btn');
+  const organizeProgress = document.getElementById('organize-progress');
+  const organizeProgressFill = document.getElementById('organize-progress-fill');
 
   let organizeOpen = false;
+  let organizeRowsByPath = new Map();
 
-  organizeBtn.addEventListener('click', async () => {
-    organizeOpen = !organizeOpen;
+  const ROW_STATUS_ICON = {
+    moving: 'fa-spinner fa-spin',
+    done: 'fa-check',
+    error: 'fa-circle-exclamation',
+  };
+
+  function setRowStatus(row, state, message) {
+    const status = row?.querySelector('.organize-row-status');
+    if (!status) return;
+    status.className = `organize-row-status${state ? ` is-${state}` : ''}`;
+    status.innerHTML = state ? `<i class="fa-solid ${ROW_STATUS_ICON[state]}" aria-hidden="true"></i>` : '';
+    status.title = message || '';
+  }
+
+  function setProgress(done, total) {
+    organizeProgress.hidden = total === 0;
+    organizeProgressFill.style.width = total ? `${Math.round((done / total) * 100)}%` : '0%';
+  }
+
+  function setOrganizeOpen(open) {
+    organizeOpen = open;
     organizePanel.hidden = !organizeOpen;
     // organizeIdleLabel is a fixed config string, never user input.
     organizeBtn.innerHTML = organizeOpen
       ? `${organizeIdleLabel} <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>`
       : `${organizeIdleLabel} <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>`;
     organizeBtn.setAttribute('aria-expanded', String(organizeOpen));
+  }
+
+  organizeBtn.addEventListener('click', async () => {
+    setOrganizeOpen(!organizeOpen);
     if (organizeOpen) {
       await loadOrganizePlan();
     }
   });
 
+  // Returns the fetched plan data (so callers can inspect e.g. count), or
+  // null if the plan couldn't be built.
   async function loadOrganizePlan() {
     const region = regionSelect.value;
-    if (!region) return;
+    if (!region) return null;
     organizeStatus.textContent = 'Building plan...';
     organizeBody.innerHTML = '';
     organizeSkipped.innerHTML = '';
     organizeApplyBtn.disabled = true;
+    setProgress(0, 0);
 
     try {
       const res = await fetch(`${apiBase}/organize/plan?${new URLSearchParams({ region })}`);
@@ -528,8 +588,11 @@ function initScanPage(config) {
         : `${data.count} file(s) will be moved. Review the plan, uncheck anything you don't want, then apply.`;
 
       organizeBody.innerHTML = '';
+      organizeRowsByPath = new Map();
       for (const item of data.plan) {
-        organizeBody.appendChild(renderOrganizeRow(item, region));
+        const row = renderOrganizeRow(item, region);
+        organizeRowsByPath.set(item.path, row);
+        organizeBody.appendChild(row);
       }
 
       if (data.skippedCount > 0) {
@@ -546,8 +609,10 @@ function initScanPage(config) {
       }
 
       organizeApplyBtn.disabled = data.count === 0;
+      return data;
     } catch (err) {
       organizeStatus.textContent = `Error: ${err.message}`;
+      return null;
     }
   }
 
@@ -577,6 +642,12 @@ function initScanPage(config) {
     typeTd.appendChild(badge);
     tr.appendChild(typeTd);
 
+    const statusTd = document.createElement('td');
+    const status = document.createElement('span');
+    status.className = 'organize-row-status';
+    statusTd.appendChild(status);
+    tr.appendChild(statusTd);
+
     return tr;
   }
 
@@ -597,27 +668,69 @@ function initScanPage(config) {
     }
 
     organizeApplyBtn.disabled = true;
-    organizeStatus.textContent = 'Moving files...';
-    try {
-      const res = await fetch(`${apiBase}/organize/apply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ region, paths: checked }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to organize');
+    setProgress(0, checked.length);
 
-      organizeStatus.textContent = `Moved ${data.movedCount} file(s)${data.errorCount ? `, ${data.errorCount} error(s)` : ''}.`;
-      if (data.errorCount) {
+    try {
+      // Move one file at a time (rather than one batch request) so progress —
+      // both the bar and each row's own status — reflects files as they
+      // actually complete, not just an opaque "Moving files..." for the
+      // whole batch.
+      const moved = [];
+      const errors = [];
+      for (let i = 0; i < checked.length; i++) {
+        const filePath = checked[i];
+        const row = organizeRowsByPath.get(filePath);
+        setRowStatus(row, 'moving');
+        organizeStatus.textContent = `Moving ${i + 1} of ${checked.length}...`;
+
+        try {
+          const res = await fetch(`${apiBase}/organize/apply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ region, paths: [filePath] }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to organize');
+
+          if (data.movedCount > 0) {
+            moved.push(...data.moved);
+            setRowStatus(row, 'done');
+          } else {
+            const err = data.errors[0] || { path: filePath, error: 'Failed to move' };
+            errors.push(err);
+            setRowStatus(row, 'error', err.error);
+          }
+        } catch (err) {
+          errors.push({ path: filePath, error: err.message });
+          setRowStatus(row, 'error', err.message);
+        }
+
+        setProgress(i + 1, checked.length);
+      }
+
+      organizeStatus.textContent = `Moved ${moved.length} file(s)${errors.length ? `, ${errors.length} error(s)` : ''}.`;
+      if (errors.length) {
         const errBox = document.createElement('div');
         errBox.className = 'status';
-        errBox.textContent = data.errors.map((e) => `${e.path}: ${e.error}`).join(' | ');
+        errBox.textContent = errors.map((e) => `${e.path}: ${e.error}`).join(' | ');
         organizeSkipped.appendChild(errBox);
       }
-      await loadOrganizePlan();
+      showToast(
+        errors.length
+          ? `Moved ${moved.length} file(s), ${errors.length} error(s).`
+          : `Moved ${moved.length} file(s) to your library.`,
+        { variant: errors.length ? 'error' : 'success' }
+      );
+
+      organizeProgress.hidden = true;
+      const plan = await loadOrganizePlan();
       await runScan();
-    } catch (err) {
-      organizeStatus.textContent = `Error: ${err.message}`;
+
+      // Nothing left to organize — collapse the panel instead of leaving it
+      // open on an empty plan until the user closes it themselves.
+      if (plan && plan.count === 0 && organizeOpen) {
+        setOrganizeOpen(false);
+      }
     } finally {
       organizeApplyBtn.disabled = false;
     }

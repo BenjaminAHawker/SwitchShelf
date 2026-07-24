@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Games - SwitchShelf</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+  <script>
+    (function () {
+      try {
+        var p = JSON.parse(localStorage.getItem('switchshelf.a11y') || '{}');
+        var c = document.documentElement.classList;
+        if (p.highContrast) c.add('a11y-high-contrast');
+        if (p.largeText) c.add('a11y-large-text');
+        if (p.reducedMotion) c.add('a11y-reduced-motion');
+        if (p.underlineLinks) c.add('a11y-underline-links');
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <header class="app-header">
+    <a href="index.html" class="app-logo-link" aria-label="SwitchShelf home">
+      <img src="icons/icon-192.png" alt="" class="app-logo" width="48" height="48" />
+    </a>
+    <div>
+      <h1><a href="index.html">SwitchShelf</a></h1>
+      <p class="subtitle">All base games accepted into your library</p>
+      <nav aria-label="Site"><a href="index.html">Search</a> · <a href="library.html" aria-current="page">My Games</a> · <a href="scan.html">Library Scan</a> · <a href="staging.html">Staging</a></nav>
+    </div>
+    <details class="a11y-menu">
+      <summary class="a11y-menu-btn" aria-label="Accessibility options"><span aria-hidden="true">&#9855;</span> Accessibility</summary>
+      <fieldset class="a11y-menu-panel">
+        <legend>Display preferences</legend>
+        <label class="checkbox-item"><input type="checkbox" id="a11y-high-contrast-toggle" /> High contrast</label>
+        <label class="checkbox-item"><input type="checkbox" id="a11y-large-text-toggle" /> Larger text</label>
+        <label class="checkbox-item"><input type="checkbox" id="a11y-reduced-motion-toggle" /> Reduce motion</label>
+        <label class="checkbox-item"><input type="checkbox" id="a11y-underline-links-toggle" /> Underline links</label>
+      </fieldset>
+    </details>
+  </header>
+
+  <main id="main-content" tabindex="-1">
+    <section class="controls">
+      <label for="region-select">Region</label>
+      <select id="region-select"></select>
+    </section>
+
+    <section id="library-info" class="status" role="status" aria-live="polite"></section>
+
+    <div id="library-grid" class="library-grid"></div>
+  </main>
+
+  <script src="region-pref.js"></script>
+  <script src="a11y.js"></script>
+  <script src="nav.js"></script>
+  <script src="library.js"></script>
+</body>
+</html>

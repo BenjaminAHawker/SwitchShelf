@@ -70,3 +70,35 @@ test('applyStagingPlan moves the file from STAGING_DIR into TITLES_DIR and re-ke
   // A subsequent staging scan no longer finds it; a library scan would.
   assert.deepEqual(scanner.scanStaging(), []);
 });
+
+test('applyStagingPlan removes an empty Staging subfolder (and empty parents) after moving its last file, but never STAGING_DIR itself', () => {
+  const nestedDir = path.join(stagingDir, 'DropFolder', 'Nested');
+  fs.mkdirSync(nestedDir, { recursive: true });
+  const nestedFile = path.join('DropFolder', 'Nested', 'Nested Game [0100000000020000][v1].nsp');
+  fs.writeFileSync(path.join(stagingDir, nestedFile), '');
+  decisions.setDecision(nestedFile, { status: 'accepted', titleId: BASE_ID, region: REGION }, 'staging');
+
+  const { moved, errors } = organize.applyStagingPlan(REGION, [nestedFile]);
+  assert.equal(errors.length, 0);
+  assert.equal(moved.length, 1);
+
+  assert.equal(fs.existsSync(path.join(stagingDir, 'DropFolder', 'Nested')), false);
+  assert.equal(fs.existsSync(path.join(stagingDir, 'DropFolder')), false);
+  assert.equal(fs.existsSync(stagingDir), true);
+});
+
+test('applyStagingPlan leaves a Staging subfolder in place if it still has other files', () => {
+  const dir = path.join(stagingDir, 'MixedFolder');
+  fs.mkdirSync(dir, { recursive: true });
+  const targetFile = path.join('MixedFolder', 'Target Game [0100000000020000][v2].nsp');
+  fs.writeFileSync(path.join(stagingDir, targetFile), '');
+  fs.writeFileSync(path.join(dir, 'leftover.txt'), '');
+  decisions.setDecision(targetFile, { status: 'accepted', titleId: BASE_ID, region: REGION }, 'staging');
+
+  const { moved, errors } = organize.applyStagingPlan(REGION, [targetFile]);
+  assert.equal(errors.length, 0);
+  assert.equal(moved.length, 1);
+
+  assert.equal(fs.existsSync(dir), true);
+  assert.equal(fs.existsSync(path.join(dir, 'leftover.txt')), true);
+});

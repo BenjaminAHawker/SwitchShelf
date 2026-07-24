@@ -172,6 +172,18 @@ summary:focus-visible,
   }
 }
 
+/* A small, contained loading spinner is a functional status indicator (it's
+   how "still moving this file" is communicated), not the kind of large-scale
+   decorative motion reduced-motion settings are meant to suppress — so it
+   keeps spinning even when the OS or the in-app "Reduce motion" toggle asks
+   to stop everything else. */
+.fa-spin {
+  animation-name: fa-spin !important;
+  animation-duration: 1s !important;
+  animation-iteration-count: infinite !important;
+  animation-timing-function: linear !important;
+}
+
 .a11y-high-contrast {
   --fg: #000000;
   --bg: #ffffff;
@@ -692,6 +704,109 @@ td.expand-cell {
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 1.25rem;
+}
+
+.toast-container {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 200;
+  max-width: min(360px, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid #166534;
+  border-radius: 8px;
+  padding: 0.65rem 0.9rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  font-size: 0.88rem;
+  color: var(--fg);
+  opacity: 0;
+  transform: translateY(0.5rem);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast.toast-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.toast-error {
+  border-left-color: #dc2626;
+}
+
+.progress-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border);
+  overflow: hidden;
+  margin: 0.75rem 0;
+}
+
+.progress-bar[hidden] {
+  display: none;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+.organize-row-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+}
+
+.organize-row-status.is-moving { color: var(--accent); }
+.organize-row-status.is-done { color: #166534; }
+.organize-row-status.is-error { color: #dc2626; }
+
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 1.5rem 1rem;
+  margin-top: 1rem;
+}
+
+.library-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--fg);
+  text-align: center;
+}
+
+.library-item-icon {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
+.library-item-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.library-item:hover .library-item-icon img,
+.library-item:focus-visible .library-item-icon img {
+  transform: scale(1.08);
 }
 
 /* --- Mobile --- */
