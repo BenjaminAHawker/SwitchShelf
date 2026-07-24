@@ -8,7 +8,7 @@ A self-hosted web app for browsing [blawar/titledb](https://github.com/blawar/ti
 
 ## What it does
 
-- Syncs region catalog files (and the DLC/update metadata file) from `blawar/titledb` on demand, only downloading what you select.
+- Syncs region catalog files (and the DLC/update metadata file) from `blawar/titledb` on demand, only downloading what you select. If GitHub — or the titledb repo itself — is ever unreachable, the region picker falls back to a bundled snapshot of the known region list instead of breaking, and an **Upload manually** control appears so you can provide a region file or `cnmts.json` yourself, from any source, in place of a sync.
 - Search/browse titles by name or nsuId, sortable by Name or Release Date (click a column header — clicking again flips direction), with filters for content type (games vs. DLC/updates/demos), language, and ownership. Switch 2 titles are excluded entirely — there's currently no way to dump/back up a Switch 2 game, so they're not relevant to what this app does.
 - **My Games**: a grid view of every base game you've accepted into your library (via Library Scan or Staging), linking straight to each title's details page.
 - Per-title details page: full metadata, screenshots, matched demos, and related DLC/updates — including versions you've matched locally that titledb doesn't catalog yet.
@@ -39,6 +39,10 @@ Staging — a drop-off folder scanned and matched the same way, with a delete ac
 
 ![Staging page](screenshots/staging.png)
 
+If GitHub is unreachable, the region list falls back to a bundled snapshot and a manual upload control appears:
+
+![Manual upload fallback](screenshots/manual-upload.png)
+
 ## Requirements
 
 - Docker and Docker Compose
@@ -64,7 +68,7 @@ Both folders are mounted **read-write**, since Organize and Staging need to rena
 ## Project layout
 
 - `server.js` — Express app and API routes.
-- `lib/` — sync (titledb downloads), store (search/filtering/ownership), scanner (local file matching, both the Library and Staging folders), decisions (accept/reject state, namespaced per source), organize (rename/move planning, both in-place and Staging → Library), cnmts (DLC/update relationships), expand (merges cnmts relations with locally-matched versions for the DLC/Updates list).
+- `lib/` — sync (titledb downloads, the bundled offline region list, and filing a manually-uploaded region file/`cnmts.json`), store (search/filtering/ownership), scanner (local file matching, both the Library and Staging folders), decisions (accept/reject state, namespaced per source), organize (rename/move planning, both in-place and Staging → Library), cnmts (DLC/update relationships), expand (merges cnmts relations with locally-matched versions for the DLC/Updates list).
 - `public/` — static frontend (search page, details page, My Games grid, library scan page, staging page — the latter two share `scan-core.js`). `public/vendor/fontawesome/` is a self-hosted, minimal subset of Font Awesome Free (no CDN), vendored via `npm install --save-dev @fortawesome/fontawesome-free` and copying just the solid/regular CSS + webfonts in use.
 - `data/` — downloaded titledb files and app state (gitignored, persisted in a Docker volume).
 - `test/` — unit tests for the `lib/` modules (Node's built-in test runner, no extra dependencies).

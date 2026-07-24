@@ -246,6 +246,10 @@ main {
   margin-top: 0.9rem;
 }
 
+.controls[hidden] {
+  display: none;
+}
+
 .controls label,
 .controls-label {
   font-size: 0.85rem;
@@ -317,6 +321,25 @@ button:disabled { opacity: 0.5; cursor: default; }
 .status {
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+.status-warning {
+  display: block;
+  font-size: 0.85rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 8px;
+  background: rgba(217, 119, 6, 0.12);
+  border: 1px solid #d97706;
+  color: var(--fg);
+  margin-bottom: 0.75rem;
+}
+
+.status-warning[hidden] {
+  display: none;
+}
+
+.status-warning a {
+  color: var(--accent);
 }
 
 .table-scroll {

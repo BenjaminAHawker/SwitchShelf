@@ -5,13 +5,14 @@ const libraryGrid = document.getElementById('library-grid');
 let regions = [];
 
 function regionLabel(r) {
-  const flag = r.downloaded ? (r.stale ? '⚠️ update available' : '✅') : '⬇️ not downloaded';
+  const flag = !r.downloaded ? '⬇️ not downloaded' : r.source === 'upload' ? '📁 uploaded' : r.stale ? '⚠️ update available' : '✅';
   return `${r.region} (${r.language}) - ${flag}`;
 }
 
 async function loadRegions() {
   const res = await fetch('/api/regions');
-  regions = await res.json();
+  const data = await res.json();
+  regions = data.regions || [];
   regionSelect.innerHTML = '';
   for (const r of regions) {
     const opt = document.createElement('option');

@@ -13,7 +13,8 @@
     "node": ">=18"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "multer": "^2.2.0"
   },
   "devDependencies": {
     "@fortawesome/fontawesome-free": "^7.3.1"
